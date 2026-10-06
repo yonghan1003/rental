@@ -258,6 +258,22 @@ tr[data-state="ended"] .pill{filter:none}
 .archived-note{font-size:12px;color:var(--dim);margin:6px 0 0}
 .pill.info{background:rgba(59,130,246,.12);color:#2563eb}
 
+/* ---------- numbered statement rows (Month summary, Income Tax) ----------
+   Flat lists of labels are hard to scan: everything sits on one left edge with no cue for
+   which figure belongs to which heading. Numbered groups give the eye a spine to follow —
+   1. is a total, 1.1 a component of it. */
+.nrow{display:flex;align-items:baseline;gap:8px;padding:3px 0}
+.nrow .no{color:var(--dim);font-variant-numeric:tabular-nums;flex:none;min-width:30px;text-align:right;font-size:12px}
+.nrow.sub .no{min-width:44px}
+.nrow .lb{flex:1;min-width:0}
+.nrow .vl{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+.nrow.tot{border-top:1px solid var(--line);margin-top:5px;padding-top:6px;font-weight:700}
+.nrow.grp .lb{font-weight:700;color:var(--txt)}
+.nrow.grp .no{font-weight:700;color:var(--txt)}
+.ngap{height:14px}
+.nsum{border-top:2px solid var(--line);margin-top:8px;padding-top:8px}
+.pill.yours{background:rgba(239,68,68,.12);color:#dc2626}
+
 </style>
 </head>
 <body>
@@ -1722,22 +1738,55 @@ function renderMonthSummary(){
   $("#mKpis").innerHTML=k.map(x=>`<div class="kpi"><div class="l">${x[0]}</div><div class="v ${x[2]}">${x[1]}</div></div>`).join("");
   $("#mTnbCalc").value = c.tnbCalc!=null ? (num(c.tnbCalc)+" kWh") : "";
   const R=MONTHS[CUR]||blank();
-  const rows=[
-    ["Rent received ("+billableTenants(CUR).filter(t=>t.type!=="Parking").length+" tenants)",c.rent],
-    ["Parking income",c.park],
-    ["<b>Total income</b>",c.income]
-  ];
+  /* Numbered groups: 1. income -> 1.1 its components -> 2. owner costs -> 3. result.
+     Without the numbering every label sits on the same left edge and the reader has to
+     remember that, say, "Parking income" is a component of "Total income". */
+  const P=[];
+  /* v is passed already formatted (num() for money) so a percentage like -54.0% survives.
+     Colour comes from the `neg`/`pos` marker in cls, matched on word boundaries so that a
+     class such as "sub" can never be mistaken for a colour. */
+  const row=(no,lb,v,cls)=>P.push(`<div class="nrow ${cls||""}"><span class="no">${no}</span>`
+    +`<span class="lb">${lb}</span><span class="vl ${/neg/.test(cls||"")?"neg":(/pos/.test(cls||"")?"pos":"")}">${v}</span></div>`);
+  const gap=()=>P.push('<div class="ngap"></div>');
+
+  const N=num;   // every money figure is formatted here, at the call site
+  const nTen=billableTenants(CUR).filter(t=>t.type!=="Parking").length;
+  row("1.","<b>Total income</b>",N(c.income),"grp");
+  if(nTen) row("1.1",`Rent received (${nTen} tenant${nTen===1?"":"s"})`,N(c.rent),"sub");
+  if(c.park) row("1.2","Parking income",N(c.park),"sub");
+  if(c.extra) row(c.park?"1.3":"1.2","Other charges collected",N(c.extra),"sub");
+  if(!nTen&&!c.park&&!c.extra) row("1.1","Nothing billed this month",N(0),"sub");
+
+  gap();
+  row("2.","<b>Total owner costs</b>",N(c.owner),"grp");
+  row("2.1","Mortgage",N(mortgageOf(R)),"sub");
+  if(+R.exp.maintenance) row("2.2","Maintenance fee",N(+R.exp.maintenance),"sub");
+  /* Only categories you actually bear are listed as your costs; tenant-borne ones are a
+     recovery and belong in group 4, so showing them here would overstate what you paid. */
+  let n=1;
   CFG.cats.forEach(c2=>{
     if(c2.id==="mortgage"||c2.id==="maintenance") return;
-    const a=+R.exp[c2.id]||0; if(!a) return;
-    rows.push([esc(c2.name)+" &nbsp;<span class='pill "+c2.bearer+"'>"+(c2.bearer==="tenant"?"tenant-borne":"your cost")+"</span>",a]);
+    const a=+R.exp[c2.id]||0; if(!a||c2.bearer!=="you") return;
+    n++; row("2."+n,esc(c2.name),N(a),"sub");
   });
-  rows.splice(3,0,["Mortgage",mortgageOf(R)],["Maintenance fee",+R.exp.maintenance||0]);
-  if(c.extra) rows.push(["Other charges collected",c.extra]);
-  rows.push(["<b>Total owner costs</b>",c.owner]);
-  rows.push(["<b>NET PROFIT</b>",c.net]);
-  rows.push(["Tenant-borne costs (not your cost)",c.tenantExp]);
-  $("#sumBody").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${num(r[1])}</td></tr>`).join("");
+  if(n===1 && !+R.exp.maintenance) row("2.3","No other owner costs this month",N(0),"sub");
+
+  gap();
+  row("3.","<b>NET PROFIT</b>",N(c.net),c.net>=0?"pos tot":"neg tot");
+  if(c.income) row("3.1","Margin",c.margin.toFixed(1)+"%",c.margin>=0?"pos sub":"neg sub");
+
+  if(c.tenantExp){
+    gap();
+    row("4.","<b>Tenant-borne costs</b>",N(c.tenantExp),"grp");
+    row("4.1","Not your cost — collected from tenants",N(c.tenantExp),"sub");
+  }
+  /* Outstanding is derived from agreed rent, so calc() can produce it for a month you never
+     entered. Only show it when the month actually has a record, or it becomes a phantom bill. */
+  if(c.outstanding>0 && MONTHS[CUR]){
+    gap();
+    row("5.","<b>Outstanding rent</b>",N(c.outstanding),"grp neg");
+  }
+  $("#sumBody").innerHTML=P.join("");
 }
 
 /* ---------- render: dashboard ---------- */
@@ -2777,24 +2826,47 @@ function taxRender(){
   }).join("");
 
   /* --- yearly assessment --- */
-    const row=(l,v,cls="",note="")=>`<tr><td>${l}</td><td class="num ${cls}">${v}</td><td class="note">${note}</td></tr>`;
     const cats=Object.values(c.ownerByCat).filter(o=>o.v>0&&o.ded).sort((a,b)=>b.v-a.v);
+    /* Same numbering spine as Month summary, so both read the same way:
+       1. income, 2. deductions, 3. chargeable, 4. tax. */
+    const P=[];
+    const row=(no,lb,v,cls,note)=>P.push(`<div class="nrow ${cls||""}"><span class="no">${no}</span>`
+      +`<span class="lb">${lb}</span>`
+      +`<span class="vl">${v}</span>`
+      +(note?`<span class="note" style="flex:none;margin-left:6px">${note}</span>`:"")+"</div>");
+    const gap=()=>P.push('<div class="ngap"></div>');
+
+    row("1.","<b>Total rental income</b>",rm(c.income),"grp");
+    if(c.rent)  row("1.1","Rent received",rm(c.rent),"sub");
+    if(c.park)  row(c.rent?"1.2":"1.1","Parking income",rm(c.park),"sub");
+    if(c.extra) row((c.rent?1:0)+(c.park?1:0)===0?"1.1":"1."+(1+(c.rent?1:0)+(c.park?1:0)),
+                    "Other charges collected",rm(c.extra),"sub");
+    if(!c.rent&&!c.park&&!c.extra) row("1.1","Nothing recorded for "+y,rm(0),"sub");
+
+    gap();
+    row("2.","<b>Total deductible expenses</b>",rm(c.ownerExp+c.interest),"grp");
+    row("2.1","Mortgage interest paid",rm(c.interest),"sub","from the table above");
+    let n=1;
+    cats.forEach(o=>{ n++; row("2."+n,o.name,rm(o.v),"sub",o.ded?"":""); });
+    if(!cats.length) row("2.2",cats.length?"":"No expense categories ticked in Setup","—","sub");
+
+    gap();
+    /* The arithmetic is shown once, as a worked line, instead of restating 1. and 2. — the
+       reader can add them up; repeating three identical numbers just adds noise. */
+    row("3.","<b>Taxable income</b>",rm(c.chargeable),"grp");
+    row("3.1",`${rm(c.income)} income less ${rm(c.ownerExp+c.interest)} deductible`,"","sub");
+    row("3.2","Chargeable income",rm(c.chargeable),"sub tot");
+
+    gap();
+    row("4.","<b>Tax payable</b>",rm(c.payable),"grp");
+    row("4.1","Tax before rebate",rm(c.tax),"sub");
+    row("4.2","Less: tax rebate",rm(-c.rebate),"sub",c.rebate?"(chargeable ≤ "+rm(CFG_TAX.rebateMax)+")":"");
+    row("4.3","Tax payable for YA "+y,rm(c.payable),"sub tot");
+    if(c.effective) row("4.4","Effective rate",c.effective.toFixed(1)+"%","sub");
+
     $("#taxOut").innerHTML=`
-    <p class="note"><b>Year of Assessment ${y}</b> — income earned ${y}, filed ${y+1}.</p>
-    <div class="scroll"><table><thead><tr><th>Line</th><th class="num">RM</th><th></th></tr></thead><tbody>
-    ${row("Rental income",rm(c.rent))}
-    ${row("Parking income",rm(c.park))}
-    ${row("Other charges collected",rm(c.extra))}
-    ${row("Total income",rm(c.income),"b")}
-    ${row("Less: interest paid",rm(-c.interest),"", "from the table above")}
-    ${cats.map(o=>row("Less: "+o.name,rm(-o.v))).join("")}
-    ${row(cats.length?"Total deductible owner expenses":"Deductible owner expenses",
-          rm(-c.ownerExp),"b", cats.length?"ticked in Setup":"none ticked, or none recorded")}
-    ${row("Taxable income",rm(c.chargeable),"b")}
-    ${row("Tax before rebate",rm(c.tax))}
-    ${row("Less: tax rebate",rm(-c.rebate),"", c.rebate?("(chargeable ≤ "+rm(CFG_TAX.rebateMax)+")"):"")}
-    ${row("Tax payable",rm(c.payable),"b", c.effective?("effective rate "+c.effective.toFixed(1)+"%"):"")}
-    </tbody></table></div>
+      <p class="note"><b>Year of Assessment ${y}</b> — income earned ${y}, filed ${y+1}.</p>
+      <div class="nsum">${P.join("")}</div>
     ${c.notDeduct.length?`<p class="note">Not deducted (unticked in Setup, but still real cost):
        ${c.notDeduct.map(o=>o.name+" "+rm(o.v)).join(" · ")}</p>`:""}
     ${c.tenantExp?`<p class="note">Tenant-borne utilities (${rm(c.tenantExp)}) are <b>not</b> deducted — collected from tenants, never paid by you.</p>`:""}
