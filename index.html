@@ -243,6 +243,21 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 #gtip .r .n{flex:1;overflow:hidden;text-overflow:ellipsis}
 #gtip .r .v{font-variant-numeric:tabular-nums;font-weight:600}
 @media print{ #gtip{display:none!important} }
+/* ---------- tenant lifecycle states ----------
+   An ended tenant keeps every historical payment and deposit record, so their row is never
+   deleted — it is dimmed instead. Inputs stay enabled on purpose: correcting a typo on a
+   lapsed tenancy is normal bookkeeping, not a data-integrity problem. */
+tr[data-state="ended"] td{opacity:.45;filter:saturate(.3)}
+tr[data-state="ended"] td[data-status]{opacity:.85}
+tr[data-state="upcoming"] td{opacity:.8}
+tr[data-state="ended"]:hover td,tr[data-state="upcoming"]:hover td{opacity:1}
+tr[data-state="ended"] .pill{filter:none}
+.tnt-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
+.tnt-bar .spacer{flex:1}
+.tnt-count{font-size:12px;color:var(--dim)}
+.archived-note{font-size:12px;color:var(--dim);margin:6px 0 0}
+.pill.info{background:rgba(59,130,246,.12);color:#2563eb}
+
 </style>
 </head>
 <body>
@@ -382,6 +397,12 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <section id="s-tenants">
   <div class="card">
     <h2>Tenants &amp; car parking</h2>
+    <div class="tnt-bar">
+      <span class="tnt-count" id="tntCount"></span>
+      <span class="spacer"></span>
+      <label class="ar-toggle"><input type="checkbox" id="tntShowEnded" onchange="renderTenants()"> Show ended tenants</label>
+      <span class="note" id="tntHideNote"></span>
+    </div>
     <div class="scroll"><table class="tight"><thead><tr><th>Name</th><th>Phone</th><th>Type</th><th class="num">Monthly (RM)</th><th>Lease start</th><th>Lease end</th><th>Status</th><th class="noprint"></th></tr></thead>
     <tbody id="tntBody"></tbody>
     <tfoot><tr><td colspan="3">Total expected monthly income <span class="note" id="tntTotalScope"></span></td><td class="num" id="tntTotal"></td><td colspan="4"></td></tr></tfoot>
@@ -619,6 +640,23 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
   </div>
 
   <div class="card">
+    <h2>Lease renewal reminders</h2>
+    <div class="grid">
+      <div><label>Start renewal talk this many months before lease end</label>
+        <input type="number" id="cfgRenew" min="1" max="12" step="1" oninput="setRenewMonths(+this.value)"></div>
+      <div><label>Show a new move-in this many months ahead</label>
+        <input type="number" id="cfgMoveIn" min="0" max="12" step="1" oninput="setMoveInMonths(+this.value)"></div>
+    </div>
+    <div class="note">A tenant inside this window gets an <b>amber "renew in N mo"</b> pill and
+      shows under <b>Expiry watch → Start renewal talk</b>. Lapses this month or next appear in
+      red under <b>Ending now</b>. Tenants whose lease already ended are dropped from that list —
+      they are history, and leaving them there buries what needs action.
+      <br><br>The two windows are separate on purpose: <b>0 = the month they move in only</b>
+      (a handover is only news when it is imminent), while the renewal window lets you start
+      talking earlier. Widening renewal will not reveal tenants three months out.</div>
+  </div>
+
+  <div class="card">
     <h2>Expense categories</h2>
     <div class="scroll"><table><thead><tr><th>Category</th><th>Default bearer</th><th>Annual / quarterly?</th><th style="text-align:center">Tax deductible?</th><th class="noprint"></th></tr></thead><tbody id="catBody"></tbody></table></div>
     <div class="row-actions noprint" style="margin-top:12px">
@@ -700,9 +738,10 @@ const $ = s=>document.querySelector(s);
 const id2 = a=>{let r=0;for(const c of String(a==null?"":a))r=(r*31+c.charCodeAt(0))>>>0;return r;};
 
 /* ---------- persistence ---------- */
-function save(){try{localStorage.setItem(KEY,JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,TAX:CFG_TAX}));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,TAX:CFG_TAX,SHOW_ENDED:(document.getElementById("tntShowEnded")||{}).checked?1:0}));}catch(e){}
   const el=$("#saveState"); if(el) el.textContent="saved "+new Date().toLocaleTimeString();}
-function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){CFG=Object.assign(CFG,d.CFG||{});TEN=d.TEN||[];MONTHS=d.MONTHS||{};CUR=d.CUR||nowMonth();RC_HDR=d.RC_HDR||{};RC_OWN=d.RC_OWN||{};RC_PERIOD=d.RC_PERIOD||{};if(d.TAX)CFG_TAX=Object.assign(CFG_TAX,d.TAX);}}catch(e){}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));
+  if(d&&d.SHOW_ENDED!=null) setTimeout(()=>{const c=$("#tntShowEnded"); if(c)c.checked=!!d.SHOW_ENDED;},0);if(d){CFG=Object.assign(CFG,d.CFG||{});TEN=d.TEN||[];MONTHS=d.MONTHS||{};CUR=d.CUR||nowMonth();RC_HDR=d.RC_HDR||{};RC_OWN=d.RC_OWN||{};RC_PERIOD=d.RC_PERIOD||{};if(d.TAX)CFG_TAX=Object.assign(CFG_TAX,d.TAX);}}catch(e){}
   TEN.forEach(t=>{ t.dep=t.dep||{amount:0,movs:[]}; t.dep.movs=t.dep.movs||[]; }); }
 
 function nowMonth(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
@@ -806,6 +845,44 @@ function leaseFullMonth(t,m){
   const lastDay=new Date(my,mm,0).getDate();   // days in month m
   return ed>=lastDay;                          // ended on/after the last day => full month
 }
+/* How many months of lease remain after month m (0 = ends this month, negative = lapsed). */
+function monthsLeft(t,m){
+  if(!t.end) return null;
+  const e=t.end.slice(0,7); if(!e||e==="0000-00") return null;
+  const[ey,em]=e.split("-").map(Number), [my,mm]=(m||CUR).split("-").map(Number);
+  return (ey-my)*12+(em-mm);
+}
+/* Months until a tenancy starts (0 = moves in this month, negative = already started).
+   Used to keep future move-ins out of the past: browsing April must not reveal a tenant
+   who does not move in until July. */
+function monthsUntilStart(t,m){
+  if(!t.start) return null;
+  const s=t.start.slice(0,7); if(!s||s==="0000-00") return null;
+  const[sy,sm]=s.split("-").map(Number), [my,mm]=(m||CUR).split("-").map(Number);
+  return (sy-my)*12+(sm-mm);
+}
+/* Renewal lead time: a lease inside this window is worth talking to the tenant about.
+   CFG.renew_months lets the owner change it without touching the code. */
+function renewWindow(){
+  const n=+CFG.renew_months; return (n>0)?n:2;
+}
+/* Move-in lookahead, deliberately separate from renewWindow(): a renewal conversation and
+   preparing a vacant unit run on different clocks. Raising the renewal window to talk to
+   sitting tenants should NOT start revealing tenants who move in three months out.
+   Default 1 month — a handover only matters when it is imminent. */
+function moveInWindow(){
+  const n=+CFG.movein_months; return (n>=0)?n:1;
+}
+/* "active" = billable this month, "ended" = lapsed, "upcoming" = not started yet.
+   Used for greying out rows without hiding their history. */
+function tenantState(t,m){
+  m=m||CUR;
+  const s=t.start? t.start.slice(0,7):"0000-00";
+  const e=t.end  ? t.end.slice(0,7)  :"9999-99";
+  if(m< s) return "upcoming";
+  if(m> e) return "ended";
+  return "active";
+}
 function leaseStatus(t,m){
   m=m||CUR;
   if(!t.start&&!t.end) return '<span class="pill">no dates</span>';
@@ -813,8 +890,14 @@ function leaseStatus(t,m){
   const e=t.end  ? t.end.slice(0,7)  :"9999-99";
   if(m<s) return '<span class="pill warn">upcoming</span>';
   if(m>e) return '<span class="pill bad">ended</span>';
-  const left=(+e.split("-")[0]-+m.split("-")[0])*12+(+e.split("-")[1]-+m.split("-")[1]);
-  if(left<=1) return '<span class="pill warn">expiring '+(left===0?"this month":"next month")+"</span>";
+  const left=monthsLeft(t,m);
+  /* Renewal window: green while comfortable, amber inside the lead time, red once it lapses.
+     The owner can widen or tighten this in Setup (CFG.renew_months). */
+  if(left<=0) return '<span class="pill bad">ends this month</span>';
+  if(left===1) return '<span class="pill warn">ends next month</span>';
+  /* <= (not <) so the pill agrees with Expiry watch: at exactly N months out the tenant is
+     already flagged for renewal, and the two must never disagree. */
+  if(left<=renewWindow()) return '<span class="pill warn">renew in '+left+' mo</span>';
   return '<span class="pill ok">active</span>';
 }
 function activeTenants(){ return TEN.filter(t=>leaseMonths(t,CUR)); }
@@ -1516,26 +1599,49 @@ function r2RentRoll(){
     <div class="rw-cap">${rm(gotT)} received of ${rm(dueT)} billed across ${rows.length} ${rows.length===1?"row":"rows"}</div>`);
 }
 /* 2. Expiry watch — leases ending this month, next month, or already lapsed */
+/* Expiry watch = forward-looking only. Tenants whose lease already lapsed are deliberately
+   left out: they are settled history, and listing them forever means the one thing you must
+   act on this month gets buried. Two groups instead:
+     COMING  — leases that are either inside the renewal lead time (start talking to the
+               tenant) or are future move-ins not yet started (prepare the unit).
+     ACTION  — lapses this month and next month, the genuinely urgent ones. */
 function r2Expiry(){
-  const ended=[],thisM=[],nextM=[],soon=[];
+  const win=renewWindow(), renew=[],newIn=[],urgent=[];
   TEN.forEach(t=>{
-    if(t.type==="Parking"||!t.end) return;
-    const em=t.end.slice(0,7);
-    if(em<CUR) ended.push(t);
-    else if(em===CUR) thisM.push(t);
-    else if(em===addMonth(CUR,1)) nextM.push(t);
-    else if(em<=addMonth(CUR,3)) soon.push(t);
+    if(t.type==="Parking") return;
+    const st=tenantState(t,CUR);
+    const left=monthsLeft(t,CUR);
+    if(st==="upcoming"){
+      /* A future move-in is only news when it is imminent. Without this guard, scrolling back
+         to April lists every tenant due months later — people who did not exist yet at that
+         point in time. Inside the window the unit genuinely needs preparing. */
+      const eta=monthsUntilStart(t,CUR);
+      if(eta!=null && eta>=0 && eta<=moveInWindow()) newIn.push(t);
+      return;
+    }
+    if(left==null) return;                       // open-ended tenancy: nothing to expire
+    if(left<0) return;                           // already ended -> not shown (see note above)
+    if(left<=1) urgent.push({t,left});
+    else if(left<=win) renew.push({t,left});
   });
-  if(!ended.length&&!thisM.length&&!nextM.length&&!soon.length) return "";
-  const line=(t,tag,cls)=>`<div class="rw-item"><span class="nm" title="${esc(t.name)}">${esc(t.name)}</span>
-      <span class="rw-tag ${cls||""}">${tag}</span><span class="vl" style="font-weight:400;color:var(--dim)">${esc(t.end)}</span></div>`;
+  if(!urgent.length&&!renew.length&&!newIn.length) return "";
+  /* when omitted the trailing column shows the lease end date, which is what matters for an
+     ending. A move-in is the opposite case, so it passes the start date instead. */
+  const line=({t,left},tag,cls,date)=>`<div class="rw-item"><span class="nm" title="${esc(t.name)}">${esc(t.name)}</span>
+      <span class="rw-tag ${cls||""}">${tag}</span><span class="vl" style="font-weight:400;color:var(--dim)">${esc(date||t.end)}</span></div>`;
   let h="";
-  if(ended.length)  h+='<div class="rw-hdr">Ended</div>'+ended.map(t=>line(t,"ended","neg")).join("");
-  if(thisM.length)  h+='<div class="rw-hdr">This month</div>'+thisM.map(t=>line(t,"ends now","neg")).join("");
-  if(nextM.length)  h+='<div class="rw-hdr">Next month</div>'+nextM.map(t=>line(t,"ends soon","neg")).join("");
-  if(soon.length)   h+='<div class="rw-hdr">Within 3 months</div>'+soon.map(t=>line(t,"")).join("");
-  const total=ended.length+thisM.length+nextM.length;
-  return r2Card("Expiry watch", h + `<div class="rw-cap" style="margin-top:8px">${total} lease${total===1?"":"s"} need attention across the next 30 days</div>`);
+  if(urgent.length) h+='<div class="rw-hdr">🔴 Ending now</div>'+urgent.map(x=>line(x,x.left===0?"ends this month":"ends next month","neg")).join("");
+  if(renew.length)  h+=`<div class="rw-hdr">💬 Start renewal talk (≤ ${win} mo)</div>`+renew.map(x=>line(x,x.left+" mo left","warn")).join("");
+  if(newIn.length){
+    const eta=t=>{const e=monthsUntilStart(t,CUR); return e===0?"moves in this month":("in "+e+" mo");};
+    h+='<div class="rw-hdr">📅 New move-ins</div>'+newIn.map(t=>line({t,left:null},eta(t),"info",t.start)).join("");
+  }
+  const n=urgent.length+renew.length+newIn.length;
+  const act=urgent.length;
+  const cap = n===1
+    ? `1 tenant needs a look this month`
+    : `${n} tenants to watch · <b>${act} ending within 30 days</b>`;
+  return r2Card("Expiry watch", h + `<div class="rw-cap" style="margin-top:8px">${cap}</div>`);
 }
 /* 3. Payment methods — how rent has been paid over the last 12 months */
 function r2Methods(){
@@ -1717,7 +1823,16 @@ function delTenant(id){
   renderTenants(); renderMonth(); renderDash(); renderDeposits(); save();
 }
 function renderTenants(){
-  $("#tntBody").innerHTML=TEN.map(t=>`<tr data-tid="${t.id}">
+  const showEnded=($("#tntShowEnded")&&$("#tntShowEnded").checked)||false;
+  const states=TEN.map(t=>({t,st:tenantState(t,CUR)}));
+  const endedN=states.filter(x=>x.st==="ended").length;
+  /* Persist the toggle so it survives a reload, but default to hiding ended tenants —
+     a lapsed tenant you are done with should not clutter the working list. */
+  const cnt=$("#tntCount"); if(cnt) cnt.textContent=`${TEN.length} record${TEN.length===1?"":"s"}`;
+  const hn=$("#tntHideNote");
+  if(hn) hn.textContent = (!showEnded && endedN) ? `${endedN} ended hidden — history still counted` : "";
+  const list=showEnded?states:states.filter(x=>x.st!=="ended");
+  $("#tntBody").innerHTML=list.map(({t,st})=>`<tr data-tid="${t.id}" data-state="${st}">
     <td><input style="width:100%;min-width:132px" value="${esc(t.name)}" oninput="setT('${t.id}','name',this.value)"></td>
     <td><input style="width:100%;min-width:130px" value="${esc(t.phone||'')}" oninput="setT('${t.id}','phone',this.value)"></td>
     <td><select style="width:100%;min-width:82px" onchange="setT('${t.id}','type',this.value)"><option ${t.type==="Tenant"?"selected":""}>Tenant</option><option ${t.type==="Parking"?"selected":""}>Parking</option></select></td>
@@ -1739,6 +1854,14 @@ function tntTotalRow(){
   el.textContent=num(activeMonthlyTotal());
   const sc=$("#tntTotalScope");
   if(sc) sc.textContent = act===all ? `(${all} active)` : `(${act} active of ${all} — ended/upcoming excluded)`;
+}
+function setRenewMonths(n){
+  CFG.renew_months=Math.min(12,Math.max(1,n||2));
+  save(); renderTenants(); renderRail(); renderRail2();
+}
+function setMoveInMonths(n){
+  CFG.movein_months=Math.min(12,Math.max(0,n||0));
+  save(); renderRail(); renderRail2();
 }
 function setT(id,f,v){
   const t=TEN.find(x=>x.id===id); if(!t) return;
@@ -1764,7 +1887,7 @@ function renderDeposits(){
   let H=0,D=0,F=0;
   $("#depBody").innerHTML=TEN.map(t=>{
     const d=depTotals(t); H+=d.held; D+=d.ded; F+=d.ref;
-    return `<tr class="click ${DEPSEL===t.id?'sel':''}" onclick="selDep('${t.id}')">
+    return `<tr data-state="${tenantState(t,CUR)}" class="click ${DEPSEL===t.id?'sel':''}" onclick="selDep('${t.id}')">
       <td><b>${esc(t.name)}</b></td>
       <td>${t.type==="Parking"?'<span class="pill">Parking</span>':'<span class="pill ok">Tenant</span>'}</td>
       <td>${leaseStatus(t,CUR)}</td>
@@ -2782,6 +2905,10 @@ function renderSetup(){
   $("#cfgMtg").value=CFG.mortgage||""; $("#cfgMaint").value=CFG.maintenance||"";
   $("#cfgMtgEnd").value=CFG.mortgage_end||""; $("#cfgOwner").value=CFG.owner||"";
   $("#cfgParking").value=CFG.parking||"";
+  /* These two are filled here rather than inline: the card is static HTML, so a ${} in the
+     markup is just literal text and the field would boot blank. */
+  const rw=$("#cfgRenew"); if(rw) rw.value=+CFG.renew_months||2;
+  const mi=$("#cfgMoveIn"); if(mi) mi.value=CFG.movein_months==null?1:+CFG.movein_months;
   $("#catBody").innerHTML=CFG.cats.map(c=>`<tr>
     <td><input value="${esc(c.name)}" oninput="setC('${c.id}','name',this.value)"></td>
     <td><select onchange="setC('${c.id}','bearer',this.value)"><option value="you" ${c.bearer==='you'?'selected':''}>You</option><option value="tenant" ${c.bearer==='tenant'?'selected':''}>Tenant</option></select></td>
