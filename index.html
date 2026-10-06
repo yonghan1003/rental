@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rental Tracker — Monthly Update</title>
+<style>
+:root{
+  --bg:#0e1117; --panel:#161b25; --panel2:#1d2430; --line:#2a3240;
+  --txt:#e6edf3; --dim:#8b98a9; --acc:#3b82f6; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+header{padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:9}
+header h1{font-size:17px;margin:0;font-weight:700}
+.spacer{flex:1}
+nav{display:flex;gap:6px;flex-wrap:wrap;padding:12px 20px 0}
+nav button{background:var(--panel2);border:1px solid var(--line);color:var(--dim);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px}
+nav button.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.wrap{display:flex;gap:16px;align-items:flex-start}
+.wrap main{flex:1 1 auto;min-width:0}
+.rail{flex:0 0 320px;width:320px;position:sticky;top:74px}
+.rail .card{padding:13px;margin-bottom:12px}
+.rail .card h2{font-size:12px;margin:0 0 10px}
+.rail .rrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:3px 0;font-size:13px}
+.rail .rrow .n{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.rail .rrow .l{color:var(--dim);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail .rbig{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.rail .rbig:last-child{border-bottom:0}
+.rail .rbig .l{font-size:12px;color:var(--dim)}
+.rail .rbig .n{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.rail .alert{font-size:12px;padding:7px 9px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);margin-bottom:6px;display:flex;gap:8px;align-items:flex-start;line-height:1.45}
+.rail .alert .i{flex:none}
+.rail .empty{font-size:12px;color:var(--dim);padding:4px 0}
+.rail .steps{display:flex;gap:6px;align-items:center;margin-top:9px}
+.rail .steps .m{font-size:12px;color:var(--dim);flex:1;text-align:center}
+@media (max-width:1200px){ .rail{display:none} }
+@media print{ .rail{display:none} }
+main{padding:18px 20px 60px;max-width:1180px}
+section{display:none}
+section.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 12px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px}
+input,select,textarea{width:100%;padding:9px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:14px}
+/* hide number spinners everywhere — these fields are typed, not nudged with arrows */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc)}
+/* Chromium's month control needs room for "Sep 2026" plus the picker arrow; at 150px the
+   year was clipped and unreadable. Also give the value a little breathing room. */
+input[type=month]{width:200px;min-width:200px;font-size:15px;letter-spacing:.3px;padding-left:12px}
+input[type=month]::-webkit-calendar-picker-indicator{margin-left:6px;cursor:pointer}
+/* The native month widget renders its own "09/2026" text and ignores CSS. Hide that text
+   (color:transparent leaves the picker arrow and the segments intact) and draw our own
+   "Sep 2026" label on top, so the format is ours while clicking still opens the picker. */
+.mwrap{position:relative;display:inline-block}
+.mwrap input[type=month]{color:transparent}
+.mwrap .mlab{position:absolute;left:13px;top:50%;transform:translateY(-50%);
+  font-size:15px;font-weight:600;letter-spacing:.4px;color:var(--txt);pointer-events:none;
+  white-space:nowrap}
+textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;resize:vertical}
+button.b{background:var(--acc);border:0;color:#fff;padding:9px 15px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
+button.b.sec{background:var(--panel2);border:1px solid var(--line);color:var(--txt);font-weight:500}
+button.b.dgr{background:var(--bad)}
+button.b.sm{padding:5px 10px;font-size:12px}
+button.b:disabled{opacity:.45;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:0}
+tr.sel{background:rgba(59,130,246,.12);outline:1px solid var(--acc)}
+tr.click{cursor:pointer}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600;white-space:nowrap}
+.pill.ok{background:rgba(34,197,94,.15);color:var(--ok)}
+.pill.warn,.pill.tenant{background:rgba(245,158,11,.15);color:var(--warn)}
+.pill.bad,.pill.you{background:rgba(239,68,68,.15);color:var(--bad)}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi .l{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+.kpi .v{font-size:21px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.pos{color:var(--ok)} .neg{color:var(--bad)}
+.note{font-size:12px;color:var(--dim);margin-top:8px}
+.note b{color:var(--txt)}
+.bar{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;background:var(--acc)}
+.bar>i.g{background:var(--ok)} .bar>i.r{background:var(--bad)}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.scroll{overflow-x:auto}
+.paper{background:#fff;color:#111;border-radius:8px;padding:34px;max-width:720px;margin:0 auto;font-size:14px;line-height:1.7}
+.paper h3{margin:0 0 2px;font-size:22px;letter-spacing:.5px}
+.paper .sub{color:#555;font-size:13px;margin-bottom:18px}
+.paper table{color:#111}
+.paper th{color:#444;border-bottom:1px solid #333}
+.paper td{border-bottom:1px solid #ddd}
+.paper .tot{font-size:20px;font-weight:700;border-top:2px solid #333;padding-top:12px;margin-top:6px;display:flex;justify-content:space-between}
+.paper .sig{margin-top:44px;display:flex;justify-content:space-between;font-size:13px;color:#444}
+.paper .sig div{width:45%;border-top:1px solid #333;padding-top:6px}
+@media print{
+  header,nav,.noprint{display:none!important}
+  body{background:#fff;color:#000}
+  section{display:none!important}
+  section.on{display:block!important}
+  .card{border:1px solid #ccc;background:#fff;break-inside:avoid}
+  .paper{border:0;padding:0;max-width:100%;margin:0}
+}
+.gmonth{display:flex;align-items:center;gap:8px;margin:0}
+.gmonth label{font-size:12px;color:#666;font-weight:600}
+.gmonth input{margin:0}
+@media print{ .gmonth{display:none} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏠 Rental Tracker</h1>
+  <div class="gmonth">
+    <label>Global month</label>
+    <input type="month" id="gMonth" onchange="setGlobalMonth(this.value)">
+  </div>
+  <span class="pill" id="saveState">saved</span>
+  <div class="spacer"></div>
+  <button class="b sec sm" onclick="save()">💾 Save</button>
+  <button class="b sec sm" onclick="exportJSON()">⬇ Export</button>
+  <label class="b sec sm" style="cursor:pointer;margin:0">⬆ Import<input type="file" id="impFile" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+  <button class="b sec sm" onclick="window.print()">🖨 Print</button>
+</header>
+
+<nav>
+  <button data-s="dash" class="on" onclick="go('dash')">Dashboard</button>
+  <button data-s="month" onclick="go('month')">Monthly Update</button>
+  <button data-s="tenants" onclick="go('tenants')">Tenants &amp; Parking</button>
+  <button data-s="deposit" onclick="go('deposit')">Deposits</button>
+  <button data-s="receipt" onclick="go('receipt')">Receipt</button>
+  <button data-s="csv" onclick="go('csv')">📥 Import CSV</button>
+  <button data-s="charts" onclick="go('charts')">📈 Graphs</button>
+  <button data-s="tax" onclick="go('tax')">🧾 Income Tax</button>
+  <button data-s="history" onclick="go('history')">History</button>
+  <button data-s="setup" onclick="go('setup')">Setup</button>
+</nav>
+
+<div class="wrap">
+<main>
+
+<!-- ============ DASHBOARD ============ -->
+<section id="s-dash" class="on">
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <label style="margin:0">Reporting month</label>
+      <input type="month" id="dashMonth" onchange="setGlobalMonth(this.value)">
+      <div class="spacer"></div>
+      <span class="pill" id="dashStatus"></span>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="note" id="dashNote"></div>
+  </div>
+
+  <div class="card">
+    <h2>Income vs Expenses</h2>
+    <div id="chartWrap" class="scroll"></div>
+  </div>
+
+  <div class="card">
+    <h2>Expense breakdown this month</h2>
+    <div class="scroll"><table><thead><tr><th>Category</th><th class="num">Amount (RM)</th><th class="num">% of income</th><th style="width:32%">Share</th></tr></thead><tbody id="expBody"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Per-tenant position</h2>
+    <div class="scroll"><table><thead><tr><th>Tenant</th><th class="num">Agreed rent</th><th class="num">Received</th><th class="num">Balance</th><th>Status</th></tr></thead><tbody id="tenBody"></tbody>
+    <tfoot><tr><td id="tenTotLbl">Total</td><td class="num" id="tenTotAg"></td><td class="num" id="tenTotA"></td><td class="num" id="tenTotB"></td><td></td></tr></tfoot>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>Owner outgoings (you pay these)</h2>
+    <div class="scroll"><table><thead><tr><th>Item</th><th class="num">This month</th><th>Who pays it</th></tr></thead><tbody id="ownBody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ============ MONTHLY UPDATE ============ -->
+<section id="s-month">
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <label style="margin:0">Month</label>
+      <input type="month" id="mMonth" onchange="setGlobalMonth(this.value)">
+      <button class="b sec sm" onclick="copyPrevMonth()">Copy previous month</button>
+      <button class="b sec sm" onclick="clearMonth()">Clear amounts</button>
+      <div class="spacer"></div>
+      <span class="note" id="mHint"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Rent collected per tenant</h2>
+    <div class="scroll"><table><thead><tr><th>Tenant / Parking</th><th class="num" style="width:74px">Agreed</th><th class="num" style="width:46px">Paid</th><th class="num" style="width:92px">Received</th><th class="num" style="width:76px">Balance</th><th style="width:130px">Method</th><th style="width:128px">Paid on</th><th style="width:auto">Note</th></tr></thead>
+    <tbody id="rentBody"></tbody>
+    <tfoot><tr><td>Total rent &amp; parking</td><td class="num" id="rentAgreedT"></td><td class="num"></td><td class="num" id="rentRecvT"></td><td class="num" id="rentBalT"></td><td colspan="4"></td></tr></tfoot>
+    </table></div>
+    <div class="note">🟢 <b>Tick</b> the box when they have paid — it fills in the agreed rent for you and stamps today as the payment date. Untick to mark it pending again (the amount is cleared). For a part-payment or advance, untick is not needed: just type the actual amount received and the tick turns itself off. Only received amounts count as income; outstanding rent is tracked but not counted.</div>
+  </div>
+
+  <div class="card">
+    <h2>Other charges collected (aircon top-up, repairs, etc.)</h2>
+    <div class="scroll"><table><thead><tr><th style="width:22%">Tenant</th><th style="width:26%">Item</th><th class="num">Amount received (RM)</th><th>Note</th><th class="noprint"></th></tr></thead><tbody id="extraBody"></tbody></table></div>
+    <div class="row-actions noprint" style="margin-top:12px">
+      <button class="b sec sm" onclick="addExtra()">+ Add item</button>
+    </div>
+    <div class="note">Money the tenant paid you <b>on top of rent</b> — aircon top-up, key replacement, painting, admin charges. Counts as income and flows into net profit and the History tab. Leave blank in months with nothing collected.</div>
+  </div>
+
+  <div class="card">
+    <h2>Monthly expenses (amounts in RM)</h2>
+    <div class="grid" id="expGrid"></div>
+    <div class="note">Every category has a flag for <b>who bears it</b>: you (landlord cost) or the tenant (recoverable / already in rent). This drives the true net-profit figure.</div>
+  </div>
+
+  <div class="card">
+    <h2>Meter readings (optional — for TNB / water)</h2>
+    <div class="grid">
+      <div><label>TNB account no.</label><input id="mTnbAcct" oninput="Mc().meta.tnb_acct=this.value;save()"></div>
+      <div><label>TNB previous reading (kWh)</label><input type="number" step="0.01" id="mTnbPrev" oninput="Mc().meta.tnb_prev=+this.value;save()"></div>
+      <div><label>TNB current reading (kWh)</label><input type="number" step="0.01" id="mTnbCur" oninput="Mc().meta.tnb_cur=+this.value;save()"></div>
+      <div><label>TNB usage check</label><input id="mTnbCalc" disabled></div>
+      <div><label>Water prev (m³)</label><input type="number" step="0.01" id="mWPrev" oninput="Mc().meta.w_prev=+this.value;save()"></div>
+      <div><label>Water current (m³)</label><input type="number" step="0.01" id="mWCur" oninput="Mc().meta.w_cur=+this.value;save()"></div>
+      <div><label>Water account no.</label><input id="mWAcct" oninput="Mc().meta.w_acct=this.value;save()"></div>
+    </div>
+    <div class="note">Readings are for your own sanity check — they flag a suspiciously high TNB bill versus last month. The bill amount still goes in Expenses above.</div>
+  </div>
+
+  <div class="card">
+    <h2>Free-text notes for this month</h2>
+    <textarea id="mNotes" rows="3" oninput="Mc().notes=this.value;save()" placeholder="Repairs done, outstanding tenant issues, agent commission…"></textarea>
+  </div>
+
+  <div class="card">
+    <h2>Month summary</h2>
+    <div class="kpis" id="mKpis"></div>
+    <hr>
+    <div class="scroll"><table><thead><tr><th>Line</th><th class="num">RM</th></tr></thead><tbody id="sumBody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ============ TENANTS ============ -->
+<section id="s-tenants">
+  <div class="card">
+    <h2>Tenants &amp; car parking</h2>
+    <div class="scroll"><table><thead><tr><th style="width:auto">Name</th><th style="width:132px">Phone</th><th style="width:158px">Type</th><th class="num" style="width:104px">Monthly (RM)</th><th style="width:178px">Lease start</th><th style="width:178px">Lease end</th><th style="width:auto">Status</th><th class="noprint" style="width:46px"></th></tr></thead>
+    <tbody id="tntBody"></tbody>
+    <tfoot><tr><td colspan="3">Total expected monthly income <span class="note" id="tntTotalScope"></span></td><td class="num" id="tntTotal"></td><td colspan="4"></td></tr></tfoot>
+    </table></div>
+    <div class="row-actions noprint" style="margin-top:12px">
+      <button class="b sm" onclick="addTenant()">+ Add tenant</button>
+      <button class="b sec sm" onclick="addParking(1)">+ Add parking bay</button>
+      <button class="b sec sm" onclick="addParking(2)">+ Add 2 parking bays</button>
+    </div>
+    <div class="note">Parking is entered as its own "tenant" row — simplest way to track it as income without confusing it with rent.</div>
+    <div class="note"><b>Lease dates control who appears.</b> A tenant shows in Monthly Update / Dashboard only for months inside their start–end dates. So a tenancy that ended Sep 2026 disappears from Oct 2026 automatically, while their past payments stay in History. Leave both dates empty for an open-ended tenancy or a continuous parking bay. The Status column shows the verdict for the month selected in Monthly Update.</div>
+  </div>
+</section>
+
+<!-- ============ DEPOSITS ============ -->
+<section id="s-deposit">
+  <div class="card">
+    <h2>Tenant deposits — what you must return</h2>
+    <div class="scroll"><table><thead><tr><th>Tenant</th><th>Type</th><th>Lease status</th><th class="num">Deposit held</th><th class="num">Deductions</th><th class="num">Refunded</th><th class="num">Balance to return</th><th class="noprint"></th></tr></thead>
+    <tbody id="depBody"></tbody>
+    <tfoot><tr><td colspan="3">Total</td><td class="num" id="depHeldT"></td><td class="num" id="depDedT"></td><td class="num" id="depRefT"></td><td class="num" id="depBalT"></td><td class="noprint"></td></tr></tfoot>
+    </table></div>
+    <div class="note">Click a row to select it, then edit its movements below. <b>Deposit held</b> is what you're holding; <b>balance to return</b> is what you still owe at move-out after deductions and refunds. Parking bays normally have no deposit — leave at 0.</div>
+  </div>
+  <div class="card">
+    <h2 id="movTitle">Deductions &amp; refunds</h2>
+    <div class="scroll"><table><thead><tr><th>Date</th><th>Type</th><th class="num">Amount (RM)</th><th>Reason</th><th class="noprint"></th></tr></thead>
+    <tbody id="movBody"></tbody></table></div>
+    <div class="row-actions noprint" style="margin-top:12px">
+      <button class="b sm" onclick="addMov('ded')">+ Deduction (you keep)</button>
+      <button class="b sec sm" onclick="addMov('ref')">+ Refund / payout</button>
+    </div>
+    <div class="note">Both entries reduce what you return to the tenant. Always write a reason — a deduction without a written reason is the easiest thing for a tenant to dispute. ✕ deletes a movement.</div>
+  </div>
+</section>
+
+<!-- ============ RECEIPT ============ -->
+<section id="s-receipt">
+  <div class="card noprint">
+    <div class="grid">
+      <div><label>Receipt month</label><select id="rcMonth" onchange="rcSync()"></select></div>
+      <div><label>Tenant / parking</label><select id="rcWho" onchange="rcSync()"></select></div>
+      <div><label>Receipt no.</label><input id="rcNo" oninput="renderReceipt()"></div>
+      <div><label>Payment date</label><input type="date" id="rcDate" onchange="renderReceipt()"></div>
+      <div><label>Amount override (optional)</label><input type="number" step="0.01" id="rcAmt" oninput="renderReceipt()" placeholder="use recorded amount"></div>
+      <div><label>Method</label><select id="rcMethod" onchange="renderReceipt()"></select></div>
+    </div>
+    <div class="row-actions" style="margin-top:12px">
+      <button class="b" onclick="exportReceiptPDF()">📄 Save as PDF</button>
+      <button class="b sec sm" onclick="printReceipt()">🖨 Print</button>
+      <button class="b sec sm" onclick="resetRcHdr()">↺ Reset header text</button>
+    </div>
+    <div class="note">Amount is pulled from the Monthly Update tab for that month. Override it only for an advance or part-payment. The big title and your name are editable — whatever you type is remembered separately for rent receipts and parking receipts. Print → save as PDF, or screenshot it.</div>
+  </div>
+  <div class="card" id="rcPaper"></div>
+</section>
+
+<!-- ============ CSV IMPORT ============ -->
+<section id="s-csv">
+  <div class="card">
+    <h2>1 · What are you importing?</h2>
+    <div class="grid">
+      <div><label>Import type</label>
+        <select id="csvMode" onchange="modeChanged()">
+          <option value="pay">Rent payments — many rows of who paid what, when</option>
+          <option value="ten">Tenants — one row per tenant / parking bay</option>
+          <option value="exp">Expenses — bills per month per category</option>
+          <option value="dep">Deposits — one row per tenant deposit + movement type</option>
+        </select>
+      </div>
+      <div><label>If no month column in the file, use</label><input type="month" id="csvDefaultMonth"></div>
+    </div>
+    <div class="note" id="csvHint"></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Choose your file (or paste the rows below)</h2>
+    <div class="row-actions noprint">
+      <label class="b sec sm" style="cursor:pointer;margin:0">📂 Choose CSV file<input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="csvFilePicked(event)"></label>
+      <button class="b sec sm" onclick="csvTemplate()">⬇ Download template</button>
+    </div>
+    <textarea id="csvText" rows="8" style="margin-top:12px" oninput="csvParse()" placeholder="Paste CSV here, including the header row…"></textarea>
+    <div class="note">Header names are matched loosely, so <code>Tenant Name</code>, <code>tenant</code> and <code>Name</code> all work. Dates accept <code>2026-10-02</code> and Malaysian <code>02/10/2026</code>. Months accept <code>2026-10</code>, <code>10/2026</code> and <code>Oct 2026</code>.</div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Check the preview, then import</h2>
+    <div class="row-actions noprint" style="margin-bottom:12px">
+      <button class="b" id="csvGo" onclick="csvImport()" disabled>⬆ Import these rows</button>
+      <button class="b sec sm" onclick="csvParse()">↻ Re-check</button>
+    </div>
+    <div id="csvSummary"></div>
+    <div class="scroll" id="csvPreview"></div>
+    <div class="note" id="csvErrors"></div>
+  </div>
+
+  <div class="card noprint">
+    <h2>Build a CSV from your current data</h2>
+    <div class="row-actions">
+      <button class="b sec sm" onclick="exportCSV('pay')">⬇ Payments CSV</button>
+      <button class="b sec sm" onclick="exportCSV('ten')">⬇ Tenants CSV</button>
+      <button class="b sec sm" onclick="exportCSV('exp')">⬇ Expenses CSV</button>
+      <button class="b sec sm" onclick="exportCSV('dep')">⬇ Deposits CSV</button>
+      <button class="b sec sm" onclick="exportCSV('extra')">⬇ Other charges CSV</button>
+      <button class="b sec sm" onclick="exportCSV('hist')">⬇ History CSV (Excel)</button>
+    </div>
+    <div class="note">Handy for editing in Excel and re-importing, or for your accountant. The History CSV is a monthly summary; the other five are detail rows that round-trip back in.</div>
+  </div>
+</section>
+
+<!-- ============ GRAPHS ============ -->
+<section id="s-charts">
+  <div class="card">
+    <h2>Trend</h2>
+    <div class="row-actions" style="margin-bottom:12px">
+      <label style="margin:0">From</label><input type="month" id="chFrom" onchange="renderCharts()">
+      <label style="margin:0">To</label><input type="month" id="chTo" onchange="renderCharts()">
+      <button class="b sec sm" onclick="setChartRange(6)">Last 6 months</button>
+      <button class="b sec sm" onclick="setChartRange(12)">Last 12 months</button>
+      <button class="b sec sm" onclick="setChartRange(0)">All</button>
+    </div>
+    <div id="chIncome"></div>
+    <div id="chNet"></div>
+  </div>
+  <div class="card">
+    <h2>Composition</h2>
+    <div class="note" style="margin:0 0 10px">Split by month or by year, or across the whole range. The two donuts follow the picker; the bar charts always cover the selected range.</div>
+    <div class="row-actions" style="margin-bottom:12px">
+      <button class="b sm" id="chMixUnit" onclick="toggleMixUnit()">Monthly</button>
+      <span class="spacer"></span>
+      <label style="margin:0" id="chMixMonthLbl">Month</label><input type="month" id="chMixMonth" onchange="renderCharts()">
+      <label style="margin:0" id="chMixYearLbl" hidden>Year</label><input type="number" id="chMixYear" min="2000" max="2100" step="1" style="width:92px" onchange="renderCharts()">
+      <span class="spacer"></span>
+      <button class="b sec sm" id="chMixRangeBtn" onclick="toggleMixRange()">Show whole range instead</button>
+    </div>
+    <div id="chDonut"></div>
+    <div id="chExpense"></div>
+    <div id="chBearer"></div>
+    <div id="chStack"></div>
+  </div>
+</section>
+
+<!-- ============ INCOME TAX ============ -->
+<section id="s-tax">
+  <div class="card">
+    <h2>Interest paid per month</h2>
+    <p class="note">Only the <b>interest</b> portion of your mortgage is deductible — not the principal.
+       Amounts prefill from the Mortgage figure you record each month; overwrite any month if your
+       bank statement says otherwise. <b>⚠ Prefilled rows still equal the full instalment</b>, so treat
+       them as a starting point and replace each one with the actual interest from your statement.</p>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <label>Year of Assessment
+        <input type="number" id="taxYa" min="2020" max="2035" step="1" style="width:90px"
+               onchange="taxSetYa(+this.value)">
+      </label>
+      <button class="b sec sm" onclick="taxPrefillAll()">⟲ Prefill all months from Mortgage</button>
+    </div>
+    <div class="scroll"><table><thead><tr>
+      <th>Month</th><th class="num">Interest paid (RM)</th><th class="num">Source</th>
+    </tr></thead><tbody id="taxIntBody"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Yearly assessment</h2>
+    <p class="note">Taxable income = total income − interest − maintenance fee.
+       These are your <b>actual tracked</b> owner expenses (no 20% statutory allowance).
+       Tenant-borne utilities are excluded — you never paid them.</p>
+    <div id="taxOut"></div>
+  </div>
+
+  <div class="card">
+    <h2>Tax bands <span class="note">— edit if LHDN changes them</span></h2>
+    <div class="scroll"><table><thead><tr>
+      <th class="num">Up to chargeable (RM)</th><th class="num">Rate (%)</th><th></th>
+    </tr></thead><tbody id="taxBandsBody"></tbody></table></div>
+    <button class="b sec sm" onclick="taxAddBand()">+ Add band</button>
+    <button class="b sec sm" onclick="taxResetBands()">⟲ Reset to YA 2025 defaults</button>
+  </div>
+</section>
+
+<!-- ============ HISTORY ============ -->
+<section id="s-history">
+  <div class="card">
+    <h2>Monthly history</h2>
+    <div class="scroll"><table><thead><tr><th>Month</th><th class="num">Rent in</th><th class="num">Parking</th><th class="num">Owner costs</th><th class="num">Recoverable</th><th class="num">Net profit</th><th class="num">Margin</th><th>Notes</th></tr></thead>
+    <tbody id="histBody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ============ SETUP ============ -->
+<section id="s-setup">
+  <div class="card">
+    <h2>Property</h2>
+    <div class="grid">
+      <div><label>Address / label</label><input id="cfgAddr" oninput="CFG.address=this.value;save()"></div>
+      <div><label>Property type</label><select id="cfgType" onchange="CFG.type=this.value;save()"><option>Terrace / landed</option><option>Condominium</option><option>Apartment</option><option>Bungalow</option><option>Others</option></select></div>
+      <div><label>Monthly mortgage (RM)</label><input type="number" step="0.01" id="cfgMtg" oninput="CFG.mortgage=+this.value;save()"></div>
+      <div><label>Maintenance fee (RM)</label><input type="number" step="0.01" id="cfgMaint" oninput="CFG.maintenance=+this.value;save()"></div>
+      <div><label>Mortgage end date</label><input type="month" id="cfgMtgEnd" onchange="CFG.mortgage_end=this.value;save()"></div>
+      <div><label>Landlord name (for receipts)</label><input id="cfgOwner" oninput="CFG.owner=this.value;save()"></div>
+      <div><label>Parking label / location (for parking receipts)</label><input id="cfgParking" oninput="CFG.parking=this.value;save()" placeholder="e.g. Car park Lot B-12, ground floor"></div>
+    </div>
+    <div class="note">Mortgage + maintenance fee are set once here, then auto-filled into every month's expenses. Change them any time — history keeps what you actually entered.</div>
+  </div>
+
+  <div class="card">
+    <h2>Expense categories</h2>
+    <div class="scroll"><table><thead><tr><th>Category</th><th>Default bearer</th><th>Annual / quarterly?</th><th style="text-align:center">Tax deductible?</th><th class="noprint"></th></tr></thead><tbody id="catBody"></tbody></table></div>
+    <div class="row-actions noprint" style="margin-top:12px">
+      <button class="b sm" onclick="addCat()">+ Add category</button>
+    </div>
+    <div class="note"><b>Bearer = You</b> → landlord cost, reduces profit. <b>Bearer = Tenant</b> → recoverable or already inside the rent, so it does NOT reduce your profit. Annual items (assessment tax, quit rent, insurance) are only entered in the months they are actually paid; enter the full invoice amount in that month, or divide it yourself — the app does not guess.<br><br><b>Tax deductible?</b> decides which categories reduce your taxable income on the 🧾 Income Tax tab. Quit rent, IWK, repairs, assessment, insurance, agent and maintenance are pre-ticked. <b>Mortgage is never ticked</b> — only its interest portion is deductible, and you enter that on the Income Tax tab, so ticking it here would deduct the interest twice. Untick anything LHDN does not accept (e.g. agent commission is often partly non-deductible); it will then be listed as a real cost but not deducted.</div>
+  </div>
+
+  <div class="card">
+    <h2>Data</h2>
+    <div class="row-actions">
+      <button class="b sec sm" onclick="exportJSON()">⬇ Export backup (JSON)</button>
+      <label class="b sec sm" style="cursor:pointer;margin:0">⬆ Restore backup<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+      <button class="b sec sm" onclick="loadDemo()">Load sample data</button>
+      <button class="b dgr sm" onclick="wipe()">Erase everything</button>
+    </div>
+    <div class="note">Data lives in this browser only (localStorage). Export a backup regularly — clearing browser data wipes it. Open the exported .json in a text editor to read it, or feed it back via Restore.</div>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ GLOBAL RIGHT RAIL ============ -->
+<aside class="rail" id="rail">
+  <div class="card">
+    <h2>This month</h2>
+    <div id="rSum"></div>
+    <div class="steps">
+      <button class="b sec sm" onclick="stepMonth(-1)">← Prev</button>
+      <span class="m" id="rMonth"></span>
+      <button class="b sec sm" onclick="stepMonth(1)">Next →</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Needs attention</h2>
+    <div id="rAlerts"></div>
+  </div>
+</aside>
+
+</div><!-- /.wrap -->
+
+<script>
+/* ============================================================
+   RENTAL TRACKER — single file, no build, no server.
+   Data model:
+     CFG   : property setup + category definitions
+     TEN   : tenants / parking bays
+              {id,name,phone,type,monthly,start,end,dep:{amount,movs:[{id,date,type,amt,reason}]}}
+     MONTHS: { "2026-10": { rent:{tenId:{amt,method,date,note}}, exp:{catId:amount}, meta:{}, notes:"" } }
+   ============================================================ */
+const KEY='rentalTracker.v1';
+let CFG={address:"",type:"Terrace / landed",mortgage:0,maintenance:0,mortgage_end:"",owner:"",
+  cats:[
+    {id:"electric", name:"Electricity (TNB)",            bearer:"tenant"},
+    {id:"water",    name:"Water",                        bearer:"tenant"},
+    {id:"iwk",      name:"Sewerage (IWK)",               bearer:"you"},
+    {id:"assess",   name:"Assessment tax (Cukai pintu)",  bearer:"you"},
+    {id:"quit",     name:"Quit rent (Cukai tanah)",       bearer:"you"},
+    {id:"internet", name:"Internet",                     bearer:"tenant"},
+    {id:"repairs",  name:"Repairs & maintenance",        bearer:"you"},
+    {id:"agent",    name:"Agent commission",             bearer:"you"},
+    {id:"insurance",name:"Insurance",                    bearer:"you"},
+    {id:"other",    name:"Others",                       bearer:"you"}
+  ]};
+let CFG_TAX={ya:2025,bands:[[5000,0],[20000,1],[35000,3],[50000,8],[70000,11],[100000,19],
+  [400000,25],[600000,26],[2000000,28]],rebate:400,rebateMax:35000};
+let TEN=[]; let MONTHS={}; let CUR=nowMonth(); let M=null; let DEPSEL=null; let IMP=null;
+let RC_HDR={}; let RC_OWN={}; let RC_PERIOD={}; let RC_WHO_MONTH=null;   // month the tenant dropdown was last built for   // receipt header/owner overrides + edited period per tenant|month
+const METHODS=["Bank transfer","DuitNow","FPX","Cash","Cheque","Other"];
+
+const $ = s=>document.querySelector(s);
+/* Defensive: a tenant imported from CSV or a hand-built record may be missing optional fields
+   (phone, note…). String() first so undefined/null never reaches the charCodeAt loop. */
+const id2 = a=>{let r=0;for(const c of String(a==null?"":a))r=(r*31+c.charCodeAt(0))>>>0;return r;};
+
+/* ---------- persistence ---------- */
+function save(){try{localStorage.setItem(KEY,JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,TAX:CFG_TAX}));}catch(e){}
+  const el=$("#saveState"); if(el) el.textContent="saved "+new Date().toLocaleTimeString();}
+function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d){CFG=Object.assign(CFG,d.CFG||{});TEN=d.TEN||[];MONTHS=d.MONTHS||{};CUR=d.CUR||nowMonth();RC_HDR=d.RC_HDR||{};RC_OWN=d.RC_OWN||{};RC_PERIOD=d.RC_PERIOD||{};if(d.TAX)CFG_TAX=Object.assign(CFG_TAX,d.TAX);}}catch(e){}
+  TEN.forEach(t=>{ t.dep=t.dep||{amount:0,movs:[]}; t.dep.movs=t.dep.movs||[]; }); }
+
+function nowMonth(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
+function mLabel(m){ if(!m||m==="0000-00") return "—"; const[a,b]=m.split("-");
+  return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+b-1]+" "+a;}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function rm(n){n=+n||0;return "RM "+n.toLocaleString("en-MY",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function num(n){return (+n||0).toLocaleString("en-MY",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function words(n){ // Malaysian English amount-in-words for receipts (ringgit + sen)
+  const O=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+  const T=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+  const u3=x=>{ x=Math.floor(x);
+    if(x<10) return O[x];
+    if(x<20) return O[x].slice(0,1)+O[x].slice(1).toLowerCase();
+    const t=T[Math.floor(x/10)]+(x%10?"-"+O[x%10]:"");
+    return t.slice(0,1)+t.slice(1).toLowerCase(); };
+  const u999=x=>{ x=Math.floor(x);
+    const h=x>=100?O[Math.floor(x/100)]+" Hundred":"";
+    const r=u3(x%100); if(!r) return h;
+    return h?h+" "+r.slice(0,1)+r.slice(1).toLowerCase():r; };
+  let v=Math.round(Math.abs(+n||0)*100);                 // work in sen
+  const sen=v%100; v=Math.floor(v/100);                   // ringgit
+  const out=[];
+  const mil=Math.floor(v/1000000), r1=v%1000000;
+  const thou=Math.floor(r1/1000), rest=r1%1000;
+  if(mil) out.push(u999(mil)+" Million");
+  if(thou) out.push(u999(thou)+" Thousand");
+  if(rest) out.push(u999(rest));
+  let s=(out.join(" ").replace(/\s+/g," ").trim()||"Zero");
+  if(sen) s+=" and "+u999(sen)+" Sen";
+  if(+n<0) s="Minus "+s;
+  return s+" Ringgit";
+}
+
+/* ---------- value coercion (used by CSV import) ---------- */
+function amtOf(v){
+  if(v==null) return 0;
+  if(typeof v==="number") return isFinite(v)?v:0;
+  const s=String(v).replace(/[^\d.\-]/g,"");   // strips RM, spaces, commas, currency
+  if(s===""||s==="-") return 0;
+  const n=parseFloat(s);
+  return isFinite(n)?n:0;
+}
+const MON=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+function monthOf(v,def){
+  if(v==null||v==="") return def;
+  let s=String(v).trim();
+  let m=s.match(/(\d{4})-(\d{1,2})/);                 // 2026-10 or 2026-10-02
+  if(m) return m[1]+"-"+String(+m[2]).padStart(2,"0");
+  m=s.match(/^(\d{1,2})\s*\/\s*(\d{4})$/);           // 10/2026
+  if(m) return m[2]+"-"+String(+m[1]).padStart(2,"0");
+  m=s.match(/^(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{4})$/); // 02/10/2026 (dd/mm/yyyy)
+  if(m) return m[3]+"-"+String(+m[2]).padStart(2,"0");
+  m=s.match(/^(\d{1,2})[\s\-\/]+([a-z]{3,9})[\s\-\/,]*(\d{4})$/i);   // 2 Oct 2026
+  if(m){ const i=MON.indexOf(m[2].slice(0,3).toLowerCase()); if(i>=0) return m[3]+"-"+String(i+1).padStart(2,"0"); }
+  m=s.match(/^([a-z]{3,9})[\s\-\/]*(\d{4})$/i);      // Oct 2026
+  if(m){ const i=MON.indexOf(m[1].slice(0,3).toLowerCase()); if(i>=0) return m[2]+"-"+String(i+1).padStart(2,"0"); }
+  return def;
+}
+function dateOf(v,def){
+  if(v==null||v==="") return def;
+  let s=String(v).trim();
+  let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return m[1]+"-"+String(+m[2]).padStart(2,"0")+"-"+String(+m[3]).padStart(2,"0");
+  m=s.match(/^(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{4})$/);   // dd/mm/yyyy
+  if(m) return m[3]+"-"+String(+m[2]).padStart(2,"0")+"-"+String(+m[1]).padStart(2,"0");
+  m=s.match(/^(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{2})$/);    // dd/mm/yy
+  if(m){ let y=+m[3]; y=y<70?2000+y:1900+y;
+    return y+"-"+String(+m[2]).padStart(2,"0")+"-"+String(+m[1]).padStart(2,"0"); }
+  // "MMM yyyy" or "MMM-yyyy" e.g. Dec 2025, Dec-2025, dec 2025
+  m=s.match(/^([a-z]{3,9})[\s\-\/]*(\d{4})$/i);
+  if(m){ const i=MON.indexOf(m[1].slice(0,3).toLowerCase()); if(i>=0) return m[2]+"-"+String(i+1).padStart(2,"0")+"-01"; }
+  return def;
+}
+
+/* ---------- lease logic ----------
+   A tenant belongs to a month only if that month falls inside [start, end].
+   A missing date is open-ended, so tenants without a fixed term and
+   parking bays keep working exactly as before.
+
+   Partial final month: if a tenancy ends mid-month (e.g. 10 Sep 2025 →
+   9 Sep 2026), that September was NOT a full rental month, so the end
+   month itself shows no rent row. Rent is due only up to the month BEFORE
+   the end month. Ending on the last day of a month (30/31 Sep) still
+   counts, because the whole month was occupied.                      */
+function leaseMonths(t,m){
+  m=m||CUR;
+  const s=t.start? t.start.slice(0,7):"0000-00";
+  const e=t.end  ? t.end.slice(0,7)  :"9999-99";
+  return m>=s && m<=e;
+}
+/* true when the tenancy covered the WHOLE of month m (partial final month => false) */
+function leaseFullMonth(t,m){
+  if(!leaseMonths(t,m)) return false;
+  const end=t.end;
+  if(!end) return true;                        // open-ended tenancy
+  const[ey,em,ed]=end.split("-").map(Number);
+  const[my,mm]=m.split("-").map(Number);
+  if(ey!==my || em!==mm) return true;          // end falls in a different month
+  const lastDay=new Date(my,mm,0).getDate();   // days in month m
+  return ed>=lastDay;                          // ended on/after the last day => full month
+}
+function leaseStatus(t,m){
+  m=m||CUR;
+  if(!t.start&&!t.end) return '<span class="pill">no dates</span>';
+  const s=t.start? t.start.slice(0,7):"0000-00";
+  const e=t.end  ? t.end.slice(0,7)  :"9999-99";
+  if(m<s) return '<span class="pill warn">upcoming</span>';
+  if(m>e) return '<span class="pill bad">ended</span>';
+  const left=(+e.split("-")[0]-+m.split("-")[0])*12+(+e.split("-")[1]-+m.split("-")[1]);
+  if(left<=1) return '<span class="pill warn">expiring '+(left===0?"this month":"next month")+"</span>";
+  return '<span class="pill ok">active</span>';
+}
+function activeTenants(){ return TEN.filter(t=>leaseMonths(t,CUR)); }
+/* tenants who owe rent this month = active AND not a partial final month */
+function billableTenants(m){ m=m||CUR; return TEN.filter(t=>leaseFullMonth(t,m)); }
+function lapsedTenants(){ return TEN.filter(t=>!leaseMonths(t,CUR)); }
+function depOf(t){ t.dep=t.dep||{amount:0,movs:[]}; t.dep.movs=t.dep.movs||[]; return t.dep; }
+function depTotals(t){
+  const d=depOf(t);
+  let ded=0,ref=0;
+  d.movs.forEach(m=>{ if(m.type==="ref") ref+=(+m.amt||0); else ded+=(+m.amt||0); });
+  const held=+d.amount||0;
+  return {held,ded,ref,bal:held-ded-ref,movs:d.movs};
+}
+
+/* ---------- month record ---------- */
+function blank(){return {rent:{},exp:{},extra:[],meta:{},notes:""};}
+function rec(m){ if(!MONTHS[m]) MONTHS[m]=blank(); return MONTHS[m]; }
+/* Read-or-create accessor for the month being edited. Inline oninput handlers in the markup
+   write straight to M.*, so M itself may be undefined for a month that has no record yet.
+   Every one of those writes goes through Mc() instead, which materialises the record only at
+   the moment you actually type something — browsing to a month still creates nothing. */
+function Mc(){ if(!M) M=rec(CUR); return M; }
+/* ---------- global month ---------- */
+/* The header picker is the single source of truth. Dashboard, Monthly Update, Tenants &
+   Parking, Deposits, Receipt and History all read the same CUR, so switching the month
+   anywhere moves every view at once and nothing can disagree about which period is shown. */
+function setGlobalMonth(v){
+  if(!v) return;
+  CUR=v; M=null;               /* drop the pointer to the old month before anything re-renders */
+  save();
+  syncMonthViews();
+  renderAll();
+}
+function syncMonthViews(){
+  /* #chFrom / #chTo are deliberately NOT in this list: they describe a chart RANGE, not the
+     period being worked on, so forcing them to CUR would collapse the range to one month. */
+  ["#gMonth","#dashMonth","#mMonth","#rcMonth","#csvDefaultMonth"].forEach(s=>{
+    const e=$(s); if(e && e.value!==CUR) e.value=CUR;
+  });
+  syncMonthLabels();
+}
+/* ---------- global right rail ---------- */
+/* Always visible on every tab. Top = the month's headline figures, bottom = only the things
+   that actually need a decision. Kept deliberately short: this is a glance panel, not a
+   second dashboard. */
+function stepMonth(n){
+  const[y,m]=CUR.split("-").map(Number);
+  const d=new Date(y,m-1+n,1);
+  setGlobalMonth(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"));
+}
+function daysBetween(a,b){ return Math.round((Date.parse(b)-Date.parse(a))/86400000); }
+function renderRail(){
+  const box=$("#rail"); if(!box) return;
+  const c=calc(CUR), m=CUR;
+
+  // ---- headline figures for the selected month ----
+  const row=(l,v,cls)=>`<div class="rbig"><span class="l">${esc(l)}</span><span class="n ${cls||""}">${v}</span></div>`;
+  $("#rMonth").textContent=mLabel(m);
+  $("#rSum").innerHTML =
+      row("Income", rm(c.income))
+    + row("Owner costs", rm(c.owner))
+    + row("Net profit", rm(c.net), c.net<0?"neg":"")
+    + row("Margin", c.income? c.margin.toFixed(1)+"%" : "—")
+    + row("Outstanding", rm(c.outstanding), c.outstanding>0?"neg":"");
+
+  // ---- alerts: only actionable items, no filler ----
+  const A=[];
+  // unpaid / part-paid rent among tenants who should be billed this month
+  billableTenants(m).forEach(t=>{
+    const due=+t.monthly||0, got=+(((MONTHS[m]||{}).rent||{})[t.id]||{}).amt||0;
+    if(due>0 && got<due-0.005)
+      A.push({i:"🔴", t:`${esc(t.name)} ${got>0?"part-paid":"unpaid"} for ${mLabel(m)}`, s:`${rm(got)} of ${rm(due)} · ${rm(due-got)} short`});
+  });
+  // leases ending soon, or already ended while still marked active
+  const soon=60, nowD=today();
+  TEN.forEach(t=>{
+    if(t.type==="Parking"||!t.end) return;
+    if(t.end<nowD && leaseMonths(t,nowD.slice(0,7))) A.push({i:"⚠️", t:`${esc(t.name)}'s lease has ended`, s:`ended ${fmtPeriodDate(t.end)} — check deposit and final bill`});
+    else{
+      const d=daysBetween(nowD,t.end);
+      if(d>=0&&d<=soon) A.push({i:"⚠️", t:`${esc(t.name)}'s lease ends in ${d} day${d===1?"":"s"}`, s:`on ${fmtPeriodDate(t.end)} — start renewal talk`});
+    }
+  });
+  // deposits that are returnable
+  TEN.forEach(t=>{
+    const d=depTotals(t);
+    if(d.bal>0 && !leaseMonths(t,m)) A.push({i:"💰", t:`${esc(t.name)} deposit to return`, s:`${rm(d.bal)} held — no active lease`});
+  });
+  // month with nothing recorded at all
+  if(!c.income && !c.owner) A.push({i:"📝", t:`Nothing recorded for ${mLabel(m)}`, s:"no income or costs entered yet"});
+  // negative profit
+  if(c.net<0) A.push({i:"📉", t:`${mLabel(m)} made a loss`, s:`${rm(c.net)} · owner costs exceeded income`});
+
+  $("#rAlerts").innerHTML = A.length
+    ? A.slice(0,8).map(a=>`<div class="alert"><span class="i">${a.i}</span><span><b>${a.t}</b><br><span class="note">${a.s}</span></span></div>`).join("")
+      + (A.length>8?`<div class="empty">+ ${A.length-8} more</div>`:"")
+    : `<div class="empty">✅ Nothing outstanding. All rent collected, no leases expiring.</div>`;
+}
+function renderAll(){
+  if($("#mMonth").value!==CUR) $("#mMonth").value=CUR;
+  /* seed the fixed costs only when the month already exists; a month you have merely browsed
+     into must not be brought to life here */
+  if(MONTHS[CUR]){ M=MONTHS[CUR]; ensureFixed();
+    if(M.exp.mortgage===undefined) M.exp.mortgage=CFG.mortgage||0;
+    if(M.exp.maintenance===undefined) M.exp.maintenance=CFG.maintenance||0; }
+  else M=null;
+  renderDash(); renderMonth(); renderTenants(); renderDeposits();
+  fillRcPicker(); renderHistory(); renderRail(); syncMonthLabels();
+}
+function loadMonth(){
+  CUR=$("#mMonth").value||CUR; M=MONTHS[CUR]||null;
+  if(M){ ensureFixed();
+    if(!M.exp.mortgage) M.exp.mortgage=CFG.mortgage||0;
+    if(!M.exp.maintenance) M.exp.maintenance=CFG.maintenance||0; }
+  $("#dashMonth").value=CUR;
+  renderMonth(); renderDash(); renderTenants(); renderSetup();
+}
+function ensureFixed(){
+  [["mortgage","Mortgage"],["maintenance","Maintenance fee"]].forEach(([id,n])=>{
+    const c=CFG.cats.find(x=>x.id===id);
+    if(!c) CFG.cats.push({id,name:n,bearer:"you"});
+    else if(c.bearer!=="you") c.bearer="you";   // fixed costs are always the landlord's
+  });
+}
+function addCat(id,name){ if(!CFG.cats.find(c=>c.id===id)) CFG.cats.push({id,name,bearer:"you"}); }
+function clearMonth(){ MONTHS[CUR]=blank(); loadMonth(); save(); }
+function copyPrevMonth(){
+  const keys=Object.keys(MONTHS).filter(k=>k<CUR).sort();
+  if(!keys.length){alert("No earlier month to copy.");return;}
+  const src=MONTHS[keys[keys.length-1]];
+  MONTHS[CUR]=JSON.parse(JSON.stringify(src)); MONTHS[CUR].rent={};
+  loadMonth(); save(); alert("Copied expense figures from "+mLabel(keys[keys.length-1])+". Rent received reset.");
+}
+
+/* ---------- render: monthly update ---------- */
+function renderMonth(){
+  /* Do NOT call rec(CUR) here. Selecting a month to LOOK at it must not create a record for
+     it, otherwise browsing to 2027 quietly adds 12 empty months that then appear in Monthly
+     History and stretch the graphs. Writes go through M, which is materialised on demand
+     below; the expense inputs stay usable because they only need M once you type. */
+  M=MONTHS[CUR];
+  const rb=$("#rentBody"); let ag=0,rc=0;
+  const active=billableTenants(CUR);
+  rb.innerHTML=active.map(t=>{
+    const r=(M&&M.rent||{})[t.id]||{};
+    const recv=+r.amt||0; ag+=+t.monthly||0; rc+=recv;
+    const bal=recv-(+t.monthly||0);
+    // "paid" = received covers the agreed amount in full (and something was received)
+    const paid=recv>0 && bal>=0;
+    const pill=t.type==="Parking"?'<span class="pill">Parking</span>':'<span class="pill ok">Tenant</span>';
+    return `<tr data-rid="${t.id}">
+      <td><b>${esc(t.name)}</b> ${pill} ${leaseStatus(t,CUR)}</td>
+      <td class="num">${num(t.monthly)}</td>
+      <td class="num" style="text-align:center"><input type="checkbox" ${paid?"checked":""} title="Paid in full" style="width:20px;height:20px;cursor:pointer" onchange="togglePaid('${t.id}',this.checked)"></td>
+      <td class="num"><input type="number" step="0.01" style="width:80px;text-align:right" value="${recv||''}" oninput="setRent('${t.id}',this.value)"></td>
+      <td class="num ${bal<0?'neg':''}" id="bal-${id2(t.id)}">${num(bal)}</td>
+      <td><select style="width:100%;min-width:114px" onchange="setField('method',this.value,'${t.id}')">${METHODS.map(x=>`<option ${r.method===x?'selected':''}>${x}</option>`).join("")}</select></td>
+      <td><input type="date" style="width:100%;min-width:110px" value="${r.date||''}" onchange="setField('date',this.value,'${t.id}')"></td>
+      <td><input style="width:100%;min-width:140px" value="${esc(r.note||'')}" oninput="setField('note',this.value,'${t.id}')" placeholder="ref / partial"></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="8" class="note">No tenant is active in ${mLabel(CUR)}. Add one in Tenants &amp; Parking, or check the lease start/end dates.</td></tr>`;
+  $("#rentAgreedT").textContent=num(ag); $("#rentRecvT").textContent=num(rc); $("#rentBalT").textContent=num(rc-ag);
+
+  // expense grid
+  $("#expGrid").innerHTML=CFG.cats.map(c=>{
+    const v=+(M&&M.exp||{})[c.id]||0;
+    const fixed=(c.id==="mortgage"||c.id==="maintenance");
+    return `<div>
+      <label>${esc(c.name)} ${fixed?'<span class="pill">fixed</span>':''}</label>
+      <input type="number" step="0.01" value="${v||''}" placeholder="0.00" oninput="setExp('${c.id}',this.value)">
+      <label style="margin-top:5px;font-size:11px">borne by
+        <select onchange="setBearer('${c.id}',this.value)">
+          <option value="you"   ${c.bearer==='you'?'selected':''}>You (landlord cost)</option>
+          <option value="tenant"${c.bearer==='tenant'?'selected':''}>Tenant (recoverable)</option>
+        </select>
+      </label>
+    </div>`;
+  }).join("");
+
+  // meta
+  const mm=(M&&M.meta)||{};
+  $("#mTnbAcct").value=mm.tnb_acct||""; $("#mTnbPrev").value=mm.tnb_prev||""; $("#mTnbCur").value=mm.tnb_cur||"";
+  $("#mWPrev").value=mm.w_prev||""; $("#mWCur").value=mm.w_cur||""; $("#mWAcct").value=mm.w_acct||"";
+  $("#mNotes").value=(M&&M.notes)||"";
+  $("#mHint").textContent="editing "+mLabel(CUR);
+  renderExtras();
+  renderMonthSummary();
+}
+function setExp(cid,v){ Mc().exp[cid]=+v||0; save(); renderMonthSummary(); renderDash(); }
+/* ---------- other charges collected (aircon top-up etc.) ---------- */
+/* NOTE: this assigns onto the passed object, so it must never be handed a temporary.
+   renderExtras passes M (possibly undefined) through Mc() first. */
+function extrasOf(r){ if(!r) return []; r.extra=r.extra||[]; return r.extra; }
+function addExtra(){
+  extrasOf(Mc()).push({id:"x"+Date.now()+Math.random().toString(36).slice(2,6),tid:"",name:"",amt:0,note:""});
+  save(); renderExtras();
+}
+function setExtra(i,f,v){
+  const e=extrasOf(Mc())[i]; if(!e) return;
+  e[f]=(f==="amt")?+v||0:v;
+  save();
+  // deliberately NOT re-rendering the table: that would destroy the very input
+  // being typed into and drop focus. Only the dependent totals are refreshed.
+  renderMonthSummary(); renderDash();
+}
+function delExtra(i){ extrasOf(Mc()).splice(i,1); save(); renderExtras(); renderMonthSummary(); renderDash(); }
+function renderExtras(){
+  const el=$("#extraBody"); if(!el) return;
+  /* Read-only here. Using Mc() would CREATE the record just because you opened the tab, which
+     is exactly the phantom-month bug. A month with no record simply shows the empty message;
+     the record is created the moment you actually add or type something. */
+  const rows=(M&&M.extra)||[];
+  el.innerHTML=rows.map((e,i)=>`<tr>
+    <td><select style="width:100%" onchange="setExtra(${i},'tid',this.value)">${`<option value="">— not tenant specific —</option>`+extraTenantOpts(e).join("")}</select></td>
+    <td><input style="width:100%" value="${esc(e.name||'')}" placeholder="e.g. Aircon top-up" oninput="setExtra(${i},'name',this.value)"></td>
+    <td class="num"><input type="number" step="0.01" style="width:120px;text-align:right" value="${e.amt||''}" placeholder="0.00" oninput="setExtra(${i},'amt',this.value)"></td>
+    <td><input style="width:100%" value="${esc(e.note||'')}" placeholder="e.g. 2 units x RM50" oninput="setExtra(${i},'note',this.value)"></td>
+    <td class="noprint"><button class="b sec sm" onclick="delExtra(${i})">✕</button></td>
+  </tr>`).join("")
+  ||`<tr><td colspan="5" class="note">Nothing extra collected this month. Use “+ Add item” when a tenant pays you for aircon top-up, keys, painting, etc.</td></tr>`;
+}
+function extrasTotal(r){ return (r&&r.extra||[]).reduce((s,e)=>s+(+e.amt||0),0); }
+/* Only offer tenants who can actually be charged this month: their lease must cover
+   CUR. Ended and not-yet-started leases are hidden. Exception: if a charge is ALREADY
+   booked to such a tenant, keep them listed (flagged) so re-rendering the month can never
+   silently drop or silently rewrite the existing selection. */
+function extraTenantOpts(e){
+  const opts=[], seen={};
+  TEN.forEach(t=>{ if(leaseMonths(t,CUR)){ seen[t.id]=1; opts.push(`<option value="${t.id}" ${e.tid===t.id?"selected":""}>${esc(t.name)}${t.type==="Parking"?" (parking)":""}</option>`); } });
+  if(e.tid && !seen[e.tid]){
+    const t=TEN.find(x=>x.id===e.tid);
+    if(t) opts.push(`<option value="${t.id}" selected>${esc(t.name)} — lease not active in ${esc(mLabel(CUR))}</option>`);
+  }
+  return opts;
+}
+function setRent(tid,v){
+  const amt=+v||0, t=TEN.find(x=>x.id===tid), bal=amt-((t&&+t.monthly)||0);
+  rec(CUR).rent[tid]=Object.assign(rec(CUR).rent[tid]||{},{amt});
+  const b=$("#bal-"+id2(tid));
+  if(b){ b.textContent=num(bal); b.className="num "+(bal<0?"neg":""); }
+  /* keep the "Paid" tick honest without a re-render (a re-render would destroy the input
+     being typed into): it is checked exactly when the typed figure covers the full rent. */
+  const tr=document.querySelector("#rentBody tr[data-rid='"+tid+"']");
+  if(tr){ const cb=tr.querySelector("input[type=checkbox]"); if(cb) cb.checked=(amt>0&&bal>=0); }
+  save(); renderMonthSummary(); renderDash();
+}
+/* Tick = "paid in full". Ticking writes the agreed rent into Received and stamps today as
+   the payment date, so the common case is one click. Unticking clears the amount and date,
+   putting the row back to pending. Typing an amount yourself always wins: setRent() unticks
+   the box when the typed value does not cover the full agreed rent. */
+function togglePaid(tid,on){
+  const t=TEN.find(x=>x.id===tid); if(!t) return;
+  const r=rec(CUR).rent[tid]=rec(CUR).rent[tid]||{};
+  if(on){ r.amt=+t.monthly||0; if(!r.date) r.date=today(); }
+  else  { r.amt=0; r.date=""; }
+  save(); renderMonth(); renderDash();
+}
+function setField(f,v,tid){ const r=rec(CUR).rent[tid]=rec(CUR).rent[tid]||{}; r[f]=v; save(); }
+function setBearer(cid,v){ CFG.cats.find(c=>c.id===cid).bearer=v; save(); renderMonthSummary(); renderDash(); }
+
+/* ---------- monthly maths ---------- */
+function calc(m){
+  m=m||CUR;
+  /* READ-ONLY on purpose. rec() CREATES a blank month as a side effect, so using it here meant
+     that merely *looking at* a month (a chart range, the composition picker, a receipt period)
+     injected that month into MONTHS — which then showed up in History and on the graphs as an
+     empty phantom. Reading directly instead: an absent month is treated as blank, not created. */
+  const r=MONTHS[m]||blank();
+  ensureFixed();
+  let rent=0, park=0, tenantExp=0, ownerExp=0;
+  TEN.filter(t=>leaseMonths(t,m)).forEach(t=>{ const a=+((r.rent[t.id]||{}).amt)||0; if(t.type==="Parking") park+=a; else rent+=a; });
+  CFG.cats.forEach(c=>{ const a=+r.exp[c.id]||0; if(c.bearer==="tenant") tenantExp+=a; else ownerExp+=a; });
+  const extra=extrasTotal(r);                       // aircon top-up, keys, other charges
+  const fin=mortgageOf(r), maint=+r.exp.maintenance||0;
+  const income=rent+park+extra, expense=ownerExp, net=income-expense;
+  const outstanding=TEN.filter(t=>leaseFullMonth(t,m)).reduce((s,t)=>s+Math.max(0,(+t.monthly||0)-(+((r.rent[t.id]||{}).amt)||0)),0);
+  const tnbCalc=(r.meta.tnb_cur&&r.meta.tnb_prev)?(r.meta.tnb_cur-r.meta.tnb_prev):null;
+  return {rent,park,extra,income,tenantExp,owner:expense,net,outstanding,tnbCalc,
+          margin:income?net/income*100:0, fin, maint};
+}
+function mortgageOf(r){return +r.exp.mortgage||0;}
+
+function renderMonthSummary(){
+  const c=calc();
+  const k=[
+    ["Total income",rm(c.income),"pos"],
+    ["Owner costs",rm(c.owner),""],
+    ["Net profit",rm(c.net),c.net>=0?"pos":"neg"],
+    ["Margin",c.margin.toFixed(1)+"%",""],
+    ["Tenant-recoverable",rm(c.tenantExp),""],
+    ["Outstanding rent",rm(c.outstanding),c.outstanding>0?"neg":"pos"]
+  ];
+  $("#mKpis").innerHTML=k.map(x=>`<div class="kpi"><div class="l">${x[0]}</div><div class="v ${x[2]}">${x[1]}</div></div>`).join("");
+  $("#mTnbCalc").value = c.tnbCalc!=null ? (num(c.tnbCalc)+" kWh") : "";
+  const R=MONTHS[CUR]||blank();
+  const rows=[
+    ["Rent received ("+billableTenants(CUR).filter(t=>t.type!=="Parking").length+" tenants)",c.rent],
+    ["Parking income",c.park],
+    ["<b>Total income</b>",c.income]
+  ];
+  CFG.cats.forEach(c2=>{
+    if(c2.id==="mortgage"||c2.id==="maintenance") return;
+    const a=+R.exp[c2.id]||0; if(!a) return;
+    rows.push([esc(c2.name)+" &nbsp;<span class='pill "+c2.bearer+"'>"+(c2.bearer==="tenant"?"tenant-borne":"your cost")+"</span>",a]);
+  });
+  rows.splice(3,0,["Mortgage",mortgageOf(R)],["Maintenance fee",+R.exp.maintenance||0]);
+  if(c.extra) rows.push(["Other charges collected",c.extra]);
+  rows.push(["<b>Total owner costs</b>",c.owner]);
+  rows.push(["<b>NET PROFIT</b>",c.net]);
+  rows.push(["Tenant-borne costs (not your cost)",c.tenantExp]);
+  $("#sumBody").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${num(r[1])}</td></tr>`).join("");
+}
+
+/* ---------- render: dashboard ---------- */
+function renderDash(){
+  const m=$("#dashMonth").value||CUR; const r=MONTHS[m]||blank(); const c=calc(m);
+  const act=billableTenants(m);   // same rule as the Rent collected table, so the two always tally
+  const lastKey=Object.keys(MONTHS).filter(k=>k<=m).sort().pop();
+  $("#dashStatus").innerHTML = m===lastKey ? '<span class="pill warn">current period</span>' : '<span class="pill">closed period</span>';
+  $("#kpis").innerHTML=[
+    ["Income",rm(c.income),"pos"],["Owner costs",rm(c.owner),""],
+    ["Net profit",rm(c.net),c.net>=0?"pos":"neg"],["Margin",c.margin.toFixed(1)+"%",""],
+    ["Outstanding",rm(c.outstanding),c.outstanding>0?"neg":"pos"],
+    ["Mortgage left",mortgageLeft(m),mortgageLeft(m)?"pos":""]
+  ].map(x=>`<div class="kpi"><div class="l">${x[0]}</div><div class="v ${x[2]}">${x[1]}</div></div>`).join("");
+  $("#dashNote").innerHTML=`Net profit counts only <b>your</b> costs. Costs flagged as tenant-borne are shown but excluded from profit, because you recover them from rent. &nbsp;|&nbsp; TNB usage this month: <b>${c.tnbCalc!=null?num(c.tnbCalc)+" kWh":"—"}</b>`;
+
+  // chart — show last 6 months only so the dashboard stays compact
+  const ks=Object.keys(MONTHS).sort();
+  if(ks.length<1){$("#chartWrap").innerHTML='<div class="note">No data yet.</div>';}
+  else{
+    const win=Math.min(6,ks.length);
+    const show=ks.slice(ks.length-win);
+    const max=Math.max(...show.map(k=>calc(k).income),1);
+    const row=(k,x)=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><span style="width:52px;font-size:10px;color:var(--dim);flex:none">${mLabel(k)}</span><div class="bar" style="flex:1;height:7px"><i class="g" style="width:${(x.income/max*100).toFixed(1)}%"></i></div><span style="width:72px;text-align:right;font-size:10px;flex:none">${num(x.income)}</span></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="width:52px;flex:none"></span><div class="bar" style="flex:1;height:7px"><i class="r" style="width:${(x.owner/max*100).toFixed(1)}%"></i></div><span style="width:72px;text-align:right;font-size:10px;flex:none;color:var(--bad)">${num(x.owner)}</span></div>`;
+    $("#chartWrap").innerHTML=show.map(k=>row(k,calc(k))).join("")
+      +`<div class="note" style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px">
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--ok);vertical-align:middle"></i> Income</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--bad);vertical-align:middle"></i> Owner costs</span>
+          <span style="margin-left:auto">Scale RM ${num(max)} · last ${win} month${win>1?"s":""}</span>
+        </div>`;
+  }
+
+  // expense breakdown
+  const items=CFG.cats.map(x=>({n:x.name,v:+r.exp[x.id]||0,b:x.bearer})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  $("#expBody").innerHTML = items.length? items.map(x=>{
+    const pct=c.income? x.v/c.income*100:0;
+    const col=x.b==="tenant"?"var(--warn)":"var(--bad)";
+    return `<tr><td>${esc(x.n)} <span class="pill ${x.b==="tenant"?"warn":"bad"}">${x.b==="tenant"?"tenant":"you"}</span></td>
+    <td class="num">${num(x.v)}</td><td class="num">${pct.toFixed(1)}%</td>
+    <td><div class="bar"><i style="background:${col};width:${c.income?Math.min(100,pct*3):0}%"></i></div></td></tr>`;}).join("")
+    : `<tr><td colspan="4" class="note">No expenses recorded.</td></tr>`;
+
+  // per tenant — only tenants whose lease is active for this month. Lapsed / not-yet-started
+  // leases are left out entirely (their history stays in History and the month itself).
+  const rows=act.map(t=>{
+    const a=+((r.rent[t.id]||{}).amt)||0, ag=+t.monthly||0, b=a-ag;
+    const st=b>=0?'<span class="pill ok">paid</span>'
+      : (a>0?'<span class="pill warn">partial</span>':'<span class="pill bad">unpaid</span>');
+    return {t,ag,a,b,st};
+  });
+  const T=rows.reduce((s,x)=>({ag:s.ag+x.ag,a:s.a+x.a,b:s.b+x.b}),{ag:0,a:0,b:0});
+  $("#tenBody").innerHTML=rows.map(x=>`<tr><td>${esc(x.t.name)} ${x.t.type==="Parking"?'<span class="pill">Parking</span>':""} ${leaseStatus(x.t,m)}</td><td class="num">${num(x.ag)}</td><td class="num">${num(x.a)}</td><td class="num ${x.b<0?'neg':''}">${num(x.b)}</td><td>${x.st}</td></tr>`).join("")
+    ||`<tr><td colspan="5" class="note">No active tenants for ${mLabel(m)}.</td></tr>`;
+  // footer totals over the rows actually shown
+  $("#tenTotLbl").innerHTML= rows.length? `<b>Total (${rows.length})</b>` : "Total";
+  $("#tenTotAg").innerHTML=`<b>${num(T.ag)}</b>`;
+  $("#tenTotA").innerHTML =`<b>${num(T.a)}</b>`;
+  const tb=$("#tenTotB"); tb.innerHTML=`<b>${num(T.b)}</b>`; tb.className="num"+(T.b<0?" neg":"");
+
+  // owner outgoings
+  const own=CFG.cats.filter(x=>x.bearer!=="tenant").map(x=>[x.name,+r.exp[x.id]||0]).filter(x=>x[1]>0);
+  $("#ownBody").innerHTML=own.map(x=>`<tr><td>${esc(x[0])}</td><td class="num">${num(x[1])}</td><td>You (landlord)</td></tr>`).join("")
+    +`<tr><td><b>Total</b></td><td class="num"><b>${num(c.owner)}</b></td><td></td></tr>`;
+}
+function mortgageLeft(m){
+  if(!CFG.mortgage_end||!CFG.mortgage) return "";
+  const end=CFG.mortgage_end, y=+m.split("-")[0], mo=+m.split("-")[1];
+  const left=(+end.split("-")[0]-y)*12+(+end.split("-")[1]-mo);
+  return left>0? left+" mo":"—";
+}
+
+/* ---------- tenants ---------- */
+function addTenant(){ TEN.push({id:"t"+Date.now(),name:"New tenant",phone:"",type:"Tenant",monthly:0,start:"",end:"",dep:{amount:0,movs:[]}}); renderTenants(); save(); }
+function addParking(n){ for(let i=0;i<n;i++) TEN.push({id:"p"+Date.now()+i,name:"Parking "+(TEN.filter(t=>t.type==="Parking").length+1+i),phone:"",type:"Parking",monthly:0,start:"",end:"",dep:{amount:0,movs:[]}}); renderTenants(); save(); }
+function delTenant(id){
+  const t=TEN.find(x=>x.id===id); const held=t?depTotals(t).held:0;
+  const paid=MONTHS&&Object.keys(MONTHS).some(m=>((MONTHS[m].rent||{})[id]));
+  if(held>0 && !confirm(t.name+" still has RM "+num(held)+" deposit held. Removing the row deletes that deposit record too. Continue?")) return;
+  if(paid && !confirm(t.name+" has payment history. Removing the row keeps past payments in History but drops the tenant row. Continue?")) return;
+  TEN=TEN.filter(x=>x.id!==id);
+  if(DEPSEL===id) DEPSEL=null;
+  renderTenants(); renderMonth(); renderDash(); renderDeposits(); save();
+}
+function renderTenants(){
+  $("#tntBody").innerHTML=TEN.map(t=>`<tr data-tid="${t.id}">
+    <td><input value="${esc(t.name)}" oninput="setT('${t.id}','name',this.value)"></td>
+    <td><input value="${esc(t.phone||'')}" oninput="setT('${t.id}','phone',this.value)"></td>
+    <td><select style="width:100%" onchange="setT('${t.id}','type',this.value)"><option ${t.type==="Tenant"?"selected":""}>Tenant</option><option ${t.type==="Parking"?"selected":""}>Parking</option></select></td>
+    <td class="num"><input type="number" step="0.01" style="width:92px;text-align:right" value="${t.monthly||''}" oninput="setT('${t.id}','monthly',+this.value)"></td>
+    <td><input type="date" style="width:170px" value="${t.start||''}" onchange="setT('${t.id}','start',this.value)"></td>
+    <td><input type="date" style="width:170px" value="${t.end||''}" onchange="setT('${t.id}','end',this.value)"></td>
+    <td data-status>${leaseStatus(t,CUR)}</td>
+    <td class="noprint"><button class="b sec sm" onclick="delTenant('${t.id}')\">✕</button></td></tr>`).join("")
+    ||`<tr><td colspan="8" class="note">Nothing yet.</td></tr>`;
+  tntTotalRow();
+}
+/* Expected monthly income counts only leases that are actually active for the month
+   being collected — ended and not-yet-started contracts are excluded, otherwise the
+   figure keeps counting tenants who have already moved out. */
+function activeMonthlyTotal(){ return TEN.filter(t=>leaseMonths(t,CUR)).reduce((s,t)=>s+(+t.monthly||0),0); }
+function tntTotalRow(){
+  const act=TEN.filter(t=>leaseMonths(t,CUR)).length, all=TEN.length;
+  const el=$("#tntTotal"); if(!el) return;
+  el.textContent=num(activeMonthlyTotal());
+  const sc=$("#tntTotalScope");
+  if(sc) sc.textContent = act===all ? `(${all} active)` : `(${act} active of ${all} — ended/upcoming excluded)`;
+}
+function setT(id,f,v){
+  const t=TEN.find(x=>x.id===id); if(!t) return;
+  t[f]=v; save();
+  // Deliberately NOT re-rendering the tenant table: renderTenants() replaces the whole
+  // tbody, which destroys the very input being typed into and drops focus (you could
+  // only ever enter one character). Refresh only the dependent read-outs instead.
+  if(f==="monthly"||f==="start"||f==="end") tntTotalRow();
+  if(f==="name"||f==="type"||f==="start"||f==="end"){
+    // the Status pill and the totals column depend on these
+    const row=document.querySelector('#tntBody tr[data-tid="'+id+'"]');
+    if(row){
+      const st=row.querySelector("[data-status]");
+      if(st) st.innerHTML=leaseStatus(t,CUR);
+    }
+  }
+  renderMonth(); renderDash(); renderDeposits();
+}
+
+/* ---------- deposits ---------- */
+function renderDeposits(){
+  if(!TEN.some(t=>t.id===DEPSEL)) DEPSEL=TEN.length?TEN[0].id:null;
+  let H=0,D=0,F=0;
+  $("#depBody").innerHTML=TEN.map(t=>{
+    const d=depTotals(t); H+=d.held; D+=d.ded; F+=d.ref;
+    return `<tr class="click ${DEPSEL===t.id?'sel':''}" onclick="selDep('${t.id}')">
+      <td><b>${esc(t.name)}</b></td>
+      <td>${t.type==="Parking"?'<span class="pill">Parking</span>':'<span class="pill ok">Tenant</span>'}</td>
+      <td>${leaseStatus(t,CUR)}</td>
+      <td class="num"><input type="number" step="0.01" style="width:110px;text-align:right" value="${d.held||''}" placeholder="0.00" onchange="setDep('${t.id}',this.value)" onmousedown="event.stopPropagation()" onclick="event.stopPropagation()" data-depheld="${t.id}"></td>
+      <td class="num" data-ded="${t.id}">${num(d.ded)}</td>
+      <td class="num" data-depref="${t.id}">${num(d.ref)}</td>
+      <td class="num ${d.bal<0?'neg':''}" data-depbal="${t.id}"><b>${num(d.bal)}</b></td>
+      <td class="noprint">${DEPSEL===t.id?'<span class="pill ok">selected</span>':""}</td>
+    </tr>`;
+  }).join("")||`<tr><td colspan="8" class="note">No tenants yet.</td></tr>`;
+  $("#depHeldT").textContent=num(H); $("#depDedT").textContent=num(D);
+  $("#depRefT").textContent=num(F); $("#depBalT").textContent=num(H-D-F);
+  renderMovs();
+}
+function selDep(id,e){
+  // ignore clicks that landed inside an editor control — otherwise selecting the row
+  // re-renders the table and destroys the input the user is typing into
+  if(e && e.target && e.target.matches("input,select,textarea,button")) return;
+  DEPSEL=id; renderDeposits();
+}
+function setDep(id,v){
+  const d=depOf(TEN.find(t=>t.id===id));
+  d.amount=+v||0;
+  save();
+  // surgical update instead of full re-render
+  const tot=depTotals(TEN.find(t=>t.id===id));
+  const row=document.querySelector(`tr.click[onclick*="${id}"]`);
+  if(row){
+    row.querySelector('[data-ded="'+id+'"]').textContent=num(tot.ded);
+    row.querySelector('[data-depref="'+id+'"]').textContent=num(tot.ref);
+    const balCell=row.querySelector('[data-depbal="'+id+'"]');
+    balCell.textContent=num(tot.bal);
+    balCell.className=tot.bal<0?'num neg':'num';
+  }
+  const H=TEN.reduce((s,t)=>s+(+depTotals(t).held),0);
+  const D=TEN.reduce((s,t)=>s+(+depTotals(t).ded),0);
+  const F=TEN.reduce((s,t)=>s+(+depTotals(t).ref),0);
+  $("#depHeldT").textContent=num(H); $("#depDedT").textContent=num(D);
+  $("#depRefT").textContent=num(F); $("#depBalT").textContent=num(H-D-F);
+  renderMovs();
+}
+function addMov(type){
+  const t=TEN.find(x=>x.id===DEPSEL);
+  if(!t){alert("Add a tenant first.");return;}
+  depOf(t).movs.push({id:"m"+Date.now()+Math.random().toString(36).slice(2,6),date:today(),type,amt:0,reason:""});
+  save(); renderDeposits();
+}
+function setMov(tid,mid,f,v){ const t=TEN.find(x=>x.id===tid); const m=depOf(t).movs.find(x=>x.id===mid); if(!m)return;
+  m[f]=(f==="amt")?+v||0:v; save(); renderDeposits(); }
+function delMov(tid,mid){
+  const t=TEN.find(x=>x.id===tid); const m=depOf(t).movs.find(x=>x.id===mid); if(!m)return;
+  if(!confirm("Delete this "+(m.type==="ref"?"refund":"deduction")+" of RM "+num(m.amt)+"?")) return;
+  depOf(t).movs=depOf(t).movs.filter(x=>x.id!==mid); save(); renderDeposits();
+}
+function renderMovs(){
+  const t=TEN.find(x=>x.id===DEPSEL);
+  $("#movTitle").textContent = t? ("Deductions & refunds — "+t.name) : "Deductions & refunds";
+  if(!t){ $("#movBody").innerHTML=`<tr><td colspan="5" class="note">Select a tenant above.</td></tr>`; return; }
+  const d=depTotals(t), movs=depOf(t).movs;
+  const rows=movs.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(m=>`<tr>
+      <td><input type="date" style="width:140px" value="${m.date||''}" onchange="setMov('${t.id}','${m.id}','date',this.value)"></td>
+      <td><select style="width:150px" onchange="setMov('${t.id}','${m.id}','type',this.value)">
+            <option value="ded" ${m.type!=="ref"?"selected":""}>Deduction (kept)</option>
+            <option value="ref" ${m.type==="ref"?"selected":""}>Refund (paid out)</option></select></td>
+      <td class="num"><input type="number" step="0.01" style="width:120px;text-align:right" value="${m.amt||''}" oninput="setMov('${t.id}','${m.id}','amt',this.value)"></td>
+      <td><input style="width:100%" value="${esc(m.reason||'')}" oninput="setMov('${t.id}','${m.id}','reason',this.value)" placeholder="e.g. wall repainting, unpaid Aug rent"></td>
+      <td class="noprint"><button class="b sec sm" onclick="delMov('${t.id}','${m.id}')\">✕</button></td>
+    </tr>`).join("");
+  $("#movBody").innerHTML=(rows||`<tr><td colspan="5" class="note">No deductions or refunds recorded for ${esc(t.name)}.</td></tr>`)
+    + `<tr><td colspan="2"><b>Balance still to return to ${esc(t.name)}</b></td><td class="num"><b>${num(d.bal)}</b></td><td colspan="2"></td></tr>`;
+}
+
+/* ---------- receipt ---------- */
+/* Period start/end: PREFILLED from the tenant's own tenure for the month being collected
+   (start date if the tenancy began that month, end date if it ended that month, otherwise
+   the 1st / last day). Both fields stay editable — whatever you type wins, because a
+   tenancy can be cut short by notice or extended by agreement and the receipt must show
+   what was actually billed. Typed values are remembered per tenant+month. */
+function dayOfMonth(d){ return d?Number(String(d).slice(8,10))||1:1; }
+function daysInMonth(m){
+  const[y,mo]=String(m).split("-").map(Number);
+  return new Date(y,mo,0).getDate();          // day 0 of next month = last day of this one
+}
+function rcPeriod(t,m){
+  const dim=daysInMonth(m);
+  if(!t||!t.start) return {from:m+"-01", to:m+"-"+String(dim).padStart(2,"0"), whole:true};
+  /* Rent is billed on the TENANCY's own cycle, not the calendar month. A lease that runs
+     15/4/2026 - 14/4/2027 is invoiced 15 Apr - 14 May, then 15 May - 14 Jun, and so on: each
+     period ends the day before the anchor day-of-month. A period therefore deliberately
+     straddles two calendar months, which is exactly what the tenant is being charged for. */
+  const anchor=dayOfMonth(t.start);
+  const shift=(iso,n)=>{                       // same anchor day-of-month, N months on
+    const[y,mo,d]=iso.split("-").map(Number);
+    const nm=mo-1+n, ny=y+Math.floor(nm/12), nmo=((nm%12)+12)%12, key=ny+"-"+String(nmo+1).padStart(2,"0");
+    return key+"-"+String(Math.min(d,daysInMonth(key))).padStart(2,"0");
+  };
+  const dayBefore=iso=>{                       // the last day of the cycle
+    const[y,mo,d]=iso.split("-").map(Number);
+    const prev=new Date(y,mo-1,d-1);           // d is the anchor day, so d-1 days earlier
+    return prev.getFullYear()+"-"+String(prev.getMonth()+1).padStart(2,"0")+"-"+String(prev.getDate()).padStart(2,"0");
+  };
+  let from=m+"-"+String(Math.min(anchor,dim)).padStart(2,"0");
+  let to=dayBefore(shift(from,1));
+  /* A short final month can leave the cycle starting AFTER the tenancy end (e.g. a lease that
+     ends 30 Nov but whose anchor day is the 31st). There is no new cycle to invoice that month,
+     so step back to the cycle that was actually running when the tenancy ended. */
+  if(t.end&&t.end<from){
+    const pm=shift(m+"-01",-1).slice(0,7);
+    const pdim=daysInMonth(pm);
+    from=pm+"-"+String(Math.min(anchor,pdim)).padStart(2,"0");
+    to=dayBefore(shift(from,1));
+  }
+  if(t.start>from) from=t.start;                // clamp to the real tenancy
+  if(t.end&&t.end<to) to=t.end;
+  if(from>to) to=from;                         // never show a reversed range
+  return {from:from, to:to, whole:(from===m+"-"+String(Math.min(anchor,dim)).padStart(2,"0"))};
+}
+/* "01 Sep 2026 - 30 Sep 2026", or the whole month when it is a full calendar month. */
+function fmtPeriodDate(iso){
+  if(!iso) return "";
+  const[y,mo,d]=iso.split("-").map(Number);
+  if(!y||!mo||!d) return iso;
+  return d+" "+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo-1]+" "+y;
+}
+function rcPeriodText(t,m){
+  const P=rcPeriod(t,m);
+  return fmtPeriodDate(P.from)+"  -  "+fmtPeriodDate(P.to);
+}
+
+/* Months offered: every month you hold data for, not just the current one.
+   Tenants offered for the chosen month: only those whose lease is actually active in
+   that month (ended / not-yet-started leases are hidden), and within that set, whoever
+   was paid comes first so the common case is one click. A tenant who was paid but whose
+   lease has since lapsed is still listed, flagged, so an old receipt can be regenerated. */
+function fillRcPicker(){
+  const ms=Object.keys(MONTHS).sort().reverse();
+  if(!ms.length) ms.push(CUR);
+  if(ms.indexOf(CUR)<0) ms.unshift(CUR);
+  $("#rcMonth").innerHTML=ms.map(m=>`<option value="${m}" ${m===CUR?"selected":""}>${mLabel(m)}</option>`).join("");
+  $("#rcMonth").value=CUR;
+  RC_WHO_MONTH=null; rcWhoOptions();
+  $("#rcMethod").innerHTML=METHODS.map(m=>`<option>${m}</option>`).join("");
+  $("#rcAmt").value="";
+  rcSync();
+}
+function rcWhoOptions(){
+  const m=$("#rcMonth").value||CUR;
+  const paid=Object.keys((MONTHS[m]||{}).rent||{});
+  const opt=t=>`<option value="${t.id}">${esc(t.name)}${t.type==="Parking"?" (parking)":""}</option>`;
+  // paid first within the active group — the common case should be one click away
+  const actPaid  =TEN.filter(t=> leaseMonths(t,m) && paid.indexOf(t.id)>=0);
+  const actUnpaid=TEN.filter(t=> leaseMonths(t,m) && paid.indexOf(t.id)<0);
+  const lapsedPad=TEN.filter(t=>!leaseMonths(t,m) && paid.indexOf(t.id)>=0);
+  const lapsedOpt=t=>`<option value="${t.id}">${esc(t.name)} — lease not active in ${esc(mLabel(m))}</option>`;
+  let html="";
+  if(actPaid.length||actUnpaid.length)
+    html+=`<optgroup label="Active in ${esc(mLabel(m))}">${actPaid.map(opt).join("")}${actUnpaid.map(opt).join("")}</optgroup>`;
+  if(lapsedPad.length)
+    html+=`<optgroup label="Not active in ${esc(mLabel(m))}">${lapsedPad.map(lapsedOpt).join("")}</optgroup>`;
+  $("#rcWho").innerHTML = html || `<option value="">—</option>`;
+}
+function rcSync(){
+  const m=$("#rcMonth").value||CUR;
+  /* The tenant list only depends on the MONTH. Rebuilding it on every rcSync() (which the
+     tenant dropdown's own onchange fires) threw away the option the user had just picked,
+     snapping the select back to the first entry. So only rebuild when the month differs
+     from the one the list was last built for, and re-apply the wanted selection after. */
+  const want=$("#rcWho").value;
+  if(RC_WHO_MONTH!==m){ RC_WHO_MONTH=m; rcWhoOptions(); }
+  const w=$("#rcWho");
+  if(want && [...w.options].some(o=>o.value===want)) w.value=want;   // keep their choice
+  const who=w.value;
+  const t=TEN.find(x=>x.id===who), r=(MONTHS[m]||{}).rent||{}, rec0=r[who]||{};
+  $("#rcAmt").value=rec0.amt||"";
+  $("#rcDate").value=rec0.date||today();
+  $("#rcMethod").value=rec0.method||METHODS[0];
+  $("#rcNo").value="R-"+m.replace("-","")+"-"+(t?t.id.replace(/[^a-z0-9]/gi,"").slice(-3).toUpperCase():"000");
+  renderReceipt();
+}
+function setRcHdr(k,v){ RC_HDR[k]=v; save(); }
+/* remember an edited period per tenant+month so re-picking the same receipt keeps it */
+function rcPeriodKey(){
+  return ($("#rcWho").value||"-")+"|"+($("#rcMonth").value||CUR);
+}
+function setRcPeriod(which,v){ RC_PERIOD[rcPeriodKey()]=(RC_PERIOD[rcPeriodKey()]||{}); RC_PERIOD[rcPeriodKey()][which]=v; save(); }
+function setRcOwn(k,v){ RC_OWN[k]=v; save(); }
+function resetRcHdr(){
+  RC_HDR={}; RC_OWN={}; RC_PERIOD={}; save(); fillRcPicker();
+}
+/* Save the receipt as a PDF with one click.
+   The browser has no built-in "write to file" API, so we open a minimal window holding
+   only the receipt (no app chrome, no other cards) and send it straight to the print dialog
+   with the Save-as-PDF destination already chosen. Nothing to install, works offline. */
+function rcStandaloneHTML(){
+  const paper=$("#rcPaper .paper");
+  if(!paper) return "";
+  const css=document.querySelector("style").textContent;
+  const title=(document.getElementById("rcTitle")||{}).value||"Receipt";
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style>${css}
+  body{background:#fff;padding:0;margin:0}
+  .card{border:0;box-shadow:none;padding:0;margin:0;background:#fff}
+  header,nav,.noprint,.row-actions{display:none!important}
+  @media print{ body{margin:0} @page{size:A4;margin:14mm} }
+</style></head><body>${paper.outerHTML}</body></html>`;
+}
+function openRcWindow(){
+  const html=rcStandaloneHTML();
+  if(!html){ alert("Select a tenant first."); return null; }
+  const w=window.open("","_blank");
+  if(!w){ alert("Your browser blocked the popup. Allow pop-ups for this page, or use the Print button."); return null; }
+  w.document.open(); w.document.write(html); w.document.close();
+  return w;
+}
+function printReceipt(){
+  const w=openRcWindow();
+  if(!w) return;
+  // let fonts/layout settle before the print dialog opens
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} },350);
+}
+function exportReceiptPDF(){ printReceipt(); }  // Save-as-PDF is chosen in the print dialog
+
+function renderReceipt(){
+  const m=$("#rcMonth").value||CUR, who=$("#rcWho").value;
+  const t=TEN.find(x=>x.id===who);
+  const rec0=((MONTHS[m]||{}).rent||{})[who]||{};
+  const av=$("#rcAmt").value;
+  const amt=(av!==""?+av:+rec0.amt)||0;
+  const date=$("#rcDate").value||today();
+  const method=$("#rcMethod").value||rec0.method||METHODS[0];
+  const no=$("#rcNo").value||"R-"+m.replace("-","");
+  const isPark=(t&&t.type)==="Parking";
+  // editable header: starts from Setup, but whatever is typed here wins until reset
+  const hdrKey=isPark?"park":"rent";
+  const hdrVal=(RC_HDR[hdrKey]!==undefined && RC_HDR[hdrKey]!=="")
+    ? RC_HDR[hdrKey] : (isPark ? (CFG.parking||"Car parking") : (CFG.address||"—"));
+  // edited period wins; otherwise fall back to the tenure-derived default for this month
+  const pk=who+"|"+m, sv=RC_PERIOD[pk]||{}, dflt=rcPeriod(t,m);
+  const pFrom=sv.from||dflt.from, pTo=sv.to||dflt.to;
+  const ownKey=isPark?"park":"rent";
+  const ownerVal=(RC_OWN[ownKey]!==undefined && RC_OWN[ownKey]!=="")
+    ? RC_OWN[ownKey] : (CFG.owner||"Landlord");
+  $("#rcPaper").innerHTML = !t ? '<div class="paper"><p class="sub">Select a tenant to generate a receipt.</p></div>' : `
+    <div class="paper">
+      <input type="text" id="rcTitle" value="${esc(hdrVal)}" oninput="setRcHdr('${hdrKey}',this.value)"
+        style="width:100%;border:0;border-bottom:1px solid #ccc;background:transparent;font-size:21px;font-weight:700;letter-spacing:.5px;color:#111;padding:2px 0" placeholder="Address or label">
+      <div class="sub" style="margin-top:6px"><input type="text" id="rcOwnerLine" value="${esc(ownerVal)}" oninput="setRcOwn('${ownKey}',this.value)"
+        style="width:70%;border:0;background:transparent;font-size:13px;color:#555;padding:2px 0" placeholder="Landlord name"> &nbsp;•&nbsp; Receipt No. ${esc(no)}</div>
+      <table>
+        <tr><th style="width:34%">Received from</th><td><b>${esc(t.name)}</b>${t.phone?" ("+esc(t.phone)+")":""}</td></tr>
+        <tr><th>Description</th><td>${isPark?"Car parking":t.type==="Parking"?"Car parking":"Rent"} — ${mLabel(m)}${!isPark&&+t.monthly?" @ "+rm(t.monthly)+"/month":""}</td></tr>
+        <tr><th>Period</th><td>
+          <input type="date" id="rcPeriodFrom" value="${esc(pFrom)}" onchange="setRcPeriod('from',this.value)"
+            style="width:150px;border:0;border-bottom:1px solid #ccc;background:transparent;font-size:13px;color:#111;padding:3px 0">
+          <span style="color:#555">&nbsp;to&nbsp;</span>
+          <input type="date" id="rcPeriodTo" value="${esc(pTo)}" onchange="setRcPeriod('to',this.value)"
+            style="width:150px;border:0;border-bottom:1px solid #ccc;background:transparent;font-size:13px;color:#111;padding:3px 0">
+        </td></tr>
+        <tr><th>Payment date</th><td>${esc(date)}</td></tr>
+        <tr><th>Method</th><td>${esc(method)}</td></tr>
+        ${rec0.note?`<tr><th>Reference</th><td>${esc(rec0.note)}</td></tr>`:""}
+        ${MONTHS[m]&&MONTHS[m].notes?`<tr><th>Note</th><td>${esc(MONTHS[m].notes)}</td></tr>`:""}
+      </table>
+      <div class="tot"><span>Amount received</span><span>${rm(amt)}</span></div>
+      <div style="margin-top:6px;font-size:13px;color:#555">${esc(words(amt))} only</div>
+      <div class="sig"><div><input type="text" id="rcTenantSign" value="${esc(t.name)}" style="width:100%;border:0;border-bottom:1px solid #333;background:transparent;font-size:14px;font-weight:600;padding:4px 0;color:#111" placeholder="Tenant name"></div><div><input type="text" id="rcLandlordSign" value="${esc(ownerVal)}" style="width:100%;border:0;border-bottom:1px solid #333;background:transparent;font-size:14px;font-weight:600;padding:4px 0;color:#111" placeholder="Landlord name"></div></div>
+    </div>`;
+}
+
+/* ================= CSV IMPORT ================= */
+const ALIAS={
+  month:["month","period","billing month","bill month","bulan","for","monthly period"],
+  tenant:["tenant","tenant name","name","payer","paid by","occupant","tenant/parking","unit"],
+  amount:["amount","amt","amount paid","rent paid","rent","value","paid","jumlah","payment","amount (rm)"],
+  method:["method","payment method","mode","paid via","channel"],
+  date:["date","paid date","payment date","transaction date","date paid"],
+  note:["note","notes","remark","remarks","reference","ref","comment"],
+  phone:["phone","mobile","contact","no","number","tel","phone no"],
+  type:["type","kind","category type"],
+  monthly:["monthly","monthly rent","agreed rent","rent per month","rental","monthly amount"],
+  start:["start","start date","lease start","from","move in","commencement"],
+  end:["end","end date","lease end","to","until","move out","expiry"],
+  cat:["category","expense","expense category","bill","type of bill","item"],
+  holder:["deposit","deposit held","deposit amount","security deposit","hold"],
+  mtype:["movement","movement type","txn type","entry","action"],
+  mamt:["movement amount","deduction","deduction amount","refund","refund amount","amount","amt","value"],
+  mdate:["movement date","txn date","entry date","date"],
+  reason:["reason","note","notes","remark","remarks","details"]
+};
+const norm=s=>String(s==null?"":s).toLowerCase().replace(/[^a-z0-9()/ ]/g,"").replace(/\s+/g," ").trim();
+
+function parseCSV(text){
+  // RFC-4180-ish: handles quoted fields, embedded commas, newlines and doubled quotes
+  const rows=[]; let row=[], cell="", q=false, i=0;
+  text=String(text||"").replace(/^\uFEFF/,"").replace(/\r\n?/g,"\n");
+  while(i<text.length){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i+=2;continue;} q=false;i++;continue; }
+      cell+=ch; i++; continue;
+    }
+    if(ch==='"'){ q=true; i++; continue; }
+    if(ch===","){ row.push(cell); cell=""; i++; continue; }
+    if(ch==="\n"){ row.push(cell); rows.push(row); row=[]; cell=""; i++; continue; }
+    cell+=ch; i++;
+  }
+  row.push(cell); rows.push(row);
+  return rows.filter(r=>r.some(c=>String(c).trim()!==""));
+}
+function detectDelim(rows){
+  const line=(rows[0]||[]).join("");
+  const c=(line.match(/,/g)||[]).length, s=(line.match(/;/g)||[]).length, t=(line.match(/\t/g)||[]).length;
+  return t>=s&&t>=c?"\t":(s>c?";":",");
+}
+function colMap(headers,fields){
+  // Score every (field, column) pair and take the best per field, preferring:
+  //   exact header match > longer alias contained in header > fuzzy overlap.
+  // A column can only be claimed once, so "Movement" and "MovementAmount"
+  // cannot both be read as the amount column.
+  const H=headers.map(norm), used={}, out={};
+  const cands=[];
+  fields.forEach(f=>{
+    (ALIAS[f]||[]).forEach((a,ai)=>{
+      const na=norm(a); if(!na) return;
+      H.forEach((h,ci)=>{
+        if(!h) return;
+        let score=0;
+        if(h===na) score=1000+na.length;
+        else if(h.indexOf(na)>=0) score=500+na.length;          // header contains alias
+        else if(na.indexOf(h)>=0) score=250+h.length;           // alias contains header
+        else {
+          const shared=H.length?na.split(" ").filter(w=>w.length>2&&h.indexOf(w)>=0).length:0;
+          if(shared) score=100+shared*10;
+        }
+        if(score) cands.push({f,ci,score,ai});
+      });
+    });
+  });
+  cands.sort((a,b)=> b.score-a.score || a.ai-b.ai || a.ci-b.ci);
+  cands.forEach(c=>{ if(out[c.f]!=null) return; if(used[c.ci]) return; out[c.f]=c.ci; used[c.ci]=1; });
+  return out;
+}
+function modeChanged(){
+  const m=$("#csvMode").value;
+  $("#csvDefaultMonth").value=CUR;
+  const hints={
+    pay:`<b>Payments CSV</b> — one row per payment. Needs a tenant column and an amount column; a month column is optional (falls back to the month box above). Unknown tenant names are <b>created automatically</b> with no lease dates, so fill those in afterwards.<br>Minimum: <code>Tenant,Amount</code>. Recommended: <code>Month,Tenant,Amount,Method,Date,Note</code>`,
+    ten:`<b>Tenants CSV</b> — one row per tenant or parking bay. Needs a name column; monthly rent, lease start and lease end are optional and control who appears in which month.<br>Minimum: <code>Name</code>. Recommended: <code>Name,Phone,Type,Monthly,Start,End</code>`,
+    exp:`<b>Expenses CSV</b> — one row per bill per month. Needs a month, a category and an amount. A category that doesn't exist yet is added; to make it tenant-borne, rename it in Setup afterwards.<br>Minimum: <code>Month,Category,Amount</code>`,
+    dep:`<b>Deposits CSV</b> — needs a tenant column. A plain amount sets the deposit held. If a movement-type column exists (refund/deduction) the row is added as a movement instead. Optional: date and reason.<br>Minimum: <code>Tenant,Deposit</code>`
+  };
+  $("#csvHint").innerHTML=hints[m];
+  csvParse();
+}
+function csvFilePicked(e){
+  const f=e.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{ $("#csvText").value=rd.result; csvParse(); };
+  rd.readAsText(f);
+}
+function csvParse(){
+  const mode=$("#csvMode").value;
+  const text=$("#csvText").value;
+  IMP=null;
+  $("#csvGo").disabled=true;
+  $("#csvSummary").innerHTML=""; $("#csvPreview").innerHTML=""; $("#csvErrors").innerHTML="";
+  if(!text.trim()){ $("#csvHint").innerHTML += '<br><b>Nothing loaded yet.</b>'; return; }
+
+  let rows=parseCSV(text);
+  if(!rows.length){ $("#csvErrors").innerHTML="<span class='neg'>Could not read any rows.</span>"; return; }
+  const delim=detectDelim(rows);
+  if(delim!==",") rows=rows.map(r=>r.join(delim).split(delim));
+  const headers=rows[0].map(h=>String(h).trim());
+  const body=rows.slice(1);
+
+  const fields = mode==="pay" ? ["month","tenant","amount","method","date","note"]
+              : mode==="ten" ? ["name","phone","type","monthly","start","end"]
+              : mode==="exp" ? ["month","cat","amount"]
+              : ["tenant","holder","mtype","mamt","mdate","reason"];
+  // 'name' uses the tenant alias set
+  const map = mode==="ten" ? colMap(headers,["tenant","phone","type","monthly","start","end"]) : colMap(headers,fields);
+  const defM=$("#csvDefaultMonth").value||CUR;
+  const get=(o,f)=>map[f]!=null?String(o[map[f]]==null?"":o[map[f]]).trim():"";
+
+  const rowsOut=[], errs=[], newTen=[];
+  body.forEach((o,ri)=>{
+    if(mode==="ten"){
+      const name=get(o,"tenant");
+      if(!name){ errs.push(`row ${ri+2}: no name — skipped`); return; }
+      const typeRaw=get(o,"type").toLowerCase();
+      const isPark=/park|car|bay|lot/.test(name+" "+typeRaw);
+      rowsOut.push({name,phone:get(o,"phone"),type:isPark?"Parking":(/park/.test(typeRaw)?"Parking":"Tenant"),
+                    monthly:amtOf(get(o,"monthly")),start:dateOf(get(o,"start"),""),end:dateOf(get(o,"end"),"")});
+    }
+    else if(mode==="pay"){
+      const name=get(o,"tenant");
+      if(!name){ errs.push(`row ${ri+2}: no tenant name — skipped`); return; }
+      const a=amtOf(get(o,"amount"));
+      if(!a){ errs.push(`row ${ri+2} (${name}): amount is 0 or unreadable — skipped`); return; }
+      rowsOut.push({name,m:monthOf(get(o,"month"),defM),amt:a,
+                    method:get(o,"method")||METHODS[0],date:dateOf(get(o,"date"),""),note:get(o,"note")});
+      if(!TEN.find(t=>norm(t.name)===norm(name)) && !newTen.some(t=>norm(t)===norm(name))) newTen.push(name);
+    }
+    else if(mode==="exp"){
+      const cat=get(o,"cat");
+      const a=amtOf(get(o,"amount"));
+      if(!cat){ errs.push(`row ${ri+2}: no category — skipped`); return; }
+      if(!a){ errs.push(`row ${ri+2} (${cat}): amount is 0 or unreadable — skipped`); return; }
+      rowsOut.push({m:monthOf(get(o,"month"),defM),cat,a});
+    }
+    else{ // dep
+      const name=get(o,"tenant");
+      if(!name){ errs.push(`row ${ri+2}: no tenant name — skipped`); return; }
+      const mt=get(o,"mtype").toLowerCase();
+      const isMov=mt&&/ref|ded|pay|out|back/.test(mt);
+      const a=isMov?amtOf(get(o,"mamt")):amtOf(get(o,"holder"));
+      if(!a){ errs.push(`row ${ri+2} (${name}): amount is 0 or unreadable — skipped`); return; }
+      rowsOut.push({name,isMov,type:/ref/.test(mt)?"ref":"ded",amt:a,date:dateOf(get(o,"mdate"),today()),reason:get(o,"reason")});
+      if(!TEN.find(t=>norm(t.name)===norm(name)) && !newTen.some(t=>norm(t)===norm(name))) newTen.push(name);
+    }
+  });
+
+  IMP={mode,rows:rowsOut,newTen,errs,map,headers};
+  const mappedFields=Object.keys(map);
+  const missing=["pay","ten","dep"].includes(mode)?"tenant":(mode==="exp"?"cat":"month");
+  const okCount=rowsOut.length;
+  const missingTxt=mappedFields.indexOf(missing)<0
+    ? `<span class="neg">⚠ column "${missing}" not found — ${missing==="tenant"?"every row will be skipped":missing==="cat"?"every row will be skipped":"all rows go into "+(defM)}</span>` : "";
+  $("#csvSummary").innerHTML=`<div class="kpis">
+      <div class="kpi"><div class="l">Rows found</div><div class="v">${body.length}</div></div>
+      <div class="kpi"><div class="l">Will import</div><div class="v pos">${okCount}</div></div>
+      <div class="kpi"><div class="l">Skipped</div><div class="v ${errs.length?'neg':''}">${errs.length}</div></div>
+      <div class="kpi"><div class="l">Detected delimiter</div><div class="v" style="font-size:15px">${delim==="\t"?"Tab":delim===";"?"Semicolon":"Comma"}</div></div>
+    </div>
+    <div class="note"><b>Columns matched:</b> ${mappedFields.length?mappedFields.map(f=>`<span class="pill ok">${f}</span>`).join(" "):'<span class="neg">none</span>'}
+    ${missingTxt}
+    ${newTen.length?`<br>🆕 These tenant names don't exist yet and will be <b>created</b>: ${newTen.map(esc).join(", ")}. Give them lease dates afterwards in Tenants &amp; Parking.` : ""}
+    <br>🟡 <b>${mode==="pay"?"Existing entries for the same tenant+month will be overwritten.":mode==="exp"?"Existing amounts for the same month+category will be overwritten.":mode==="ten"?"Existing tenants with the same name will be updated.":"Existing deposits for the same tenant will be overwritten."}</b> Export a backup first if you are unsure.</div>`;
+  // preview columns per mode: [label, propertyOnRow]
+  const shown = mode==="pay" ? [["Month","m"],["Tenant","name"],["Amount","amt"],["Method","method"],["Date","date"],["Note","note"]]
+            : mode==="ten" ? [["Name","name"],["Phone","phone"],["Type","type"],["Monthly","monthly"],["Start","start"],["End","end"]]
+            : mode==="exp" ? [["Month","m"],["Category","cat"],["Amount","a"]]
+            : [["Tenant","name"],["Row type","isMov"],["Movement","type"],["Amount","amt"],["Date","date"],["Reason","reason"]];
+  $("#csvPreview").innerHTML=okCount? `<table><thead><tr><th>#</th>${shown.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>`
+    +rowsOut.slice(0,12).map((r,i)=>`<tr><td class="note">${i+1}</td>${
+      shown.map(c=>{
+        let v=r[c[1]];
+        if(mode==="dep"&&c[1]==="isMov") v=r.isMov?(r.type==="ref"?"Refund":"Deduction"):"sets deposit held";
+        return `<td>${esc(v===undefined||v===null?"":v)}</td>`;
+      }).join("")}</tr>`).join("")
+    +`</tbody></table>${rowsOut.length>12?`<div class="note">…and ${rowsOut.length-12} more rows.</div>`:""}` : "";
+  $("#csvErrors").innerHTML=errs.length? `<b>Skipped rows (first 8):</b><br>`+errs.slice(0,8).map(esc).join("<br>") : "";
+  $("#csvGo").disabled=okCount===0;
+}
+function findTen(name){
+  const n=norm(name);
+  let t=TEN.find(x=>norm(x.name)===n);
+  if(!t) t=TEN.find(x=>norm(x.name).split(" ").pop()===n);
+  if(!t){ t={id:"t"+Date.now()+Math.random().toString(36).slice(2,6),name:String(name).trim(),
+             phone:"",type:/park|car|bay/i.test(String(name))?"Parking":"Tenant",monthly:0,start:"",end:"",dep:{amount:0,movs:[]}};
+         TEN.push(t); }
+  return t;
+}
+function findCat(name){
+  const n=norm(name);
+  let c=CFG.cats.find(x=>norm(x.name)===n);
+  if(!c) c=CFG.cats.find(x=>n&&(norm(x.name).indexOf(n)>=0||n.indexOf(norm(x.name))>=0));
+  if(!c){ const id="c"+Date.now()+Math.random().toString(36).slice(2,6);
+    c={id,name:String(name).trim(),bearer:"you"}; CFG.cats.push(c); }
+  return c;
+}
+function csvImport(){
+  if(!IMP||!IMP.rows.length) return;
+  const mode=IMP.mode, rows=IMP.rows;
+  if(!confirm("Import "+rows.length+" rows?\n\nThis overwrites matching existing entries. Export a backup first if unsure.")) return;
+  let nPay=0,nTen=0,nExp=0,nDep=0,nMov=0;
+  if(mode==="pay"){
+    rows.forEach(r=>{ const t=findTen(r.name); const m=r.m;
+      const R=rec(m); R.rent[t.id]=Object.assign(R.rent[t.id]||{},{amt:r.amt,method:r.method,date:r.date,note:r.note}); nPay++; });
+  } else if(mode==="ten"){
+    // One tenant may span several CSV rows (e.g. one row per lease period), so merge
+    // rows that share a name before writing: last non-empty value wins, blanks never
+    // wipe an existing value, and the tenant is only created once.
+    const merged=new Map();
+    rows.forEach(r=>{
+      const n=norm(r.name);
+      const prev=merged.get(n);
+      if(!prev){ merged.set(n,Object.assign({},r)); return; }
+      ["name","phone","type","monthly","start","end"].forEach(k=>{
+        if(r[k]!==undefined && r[k]!==null && r[k]!=="") prev[k]=r[k];
+      });
+    });
+    merged.forEach(r=>{
+      let t=TEN.find(x=>norm(x.name)===norm(r.name));
+      if(t){ t.name=r.name||t.name; if(r.phone) t.phone=r.phone; if(r.type) t.type=r.type;
+             if(r.monthly) t.monthly=r.monthly; if(r.start) t.start=r.start; if(r.end) t.end=r.end; }
+      else { t={id:"t"+Date.now()+Math.random().toString(36).slice(2,6),name:r.name,phone:r.phone,type:r.type,
+               monthly:r.monthly,start:r.start,end:r.end,dep:{amount:0,movs:[]}}; TEN.push(t); }
+      nTen++;
+    });
+  } else if(mode==="exp"){
+    rows.forEach(r=>{ const c=findCat(r.cat); rec(r.m).exp[c.id]=r.a; nExp++; });
+  } else {
+    rows.forEach(r=>{
+      const t=findTen(r.name); const d=depOf(t);
+      if(r.isMov){ d.movs.push({id:"m"+Date.now()+Math.random().toString(36).slice(2,6),date:r.date,type:r.type,amt:r.amt,reason:r.reason}); nMov++; }
+      else { d.amount=r.amt; nDep++; }
+    });
+  }
+  if(!$("#mMonth").value) $("#mMonth").value=CUR;
+  boot(true); save();
+  const bits=[["payments",nPay],["tenants",nTen],["expenses",nExp],["deposits",nDep],["movements",nMov]].filter(x=>x[1]);
+  alert("Imported:\n"+bits.map(x=>"• "+x[1]+" "+x[0]).join("\n")+"\n\nTenants created: "+(TEN.length));
+  $("#csvErrors").innerHTML+="";
+}
+function csvTemplate(){
+  const mode=$("#csvMode").value;
+  const t={
+    pay:"Month,Tenant,Amount,Method,Date,Note\n2026-10,Siti,700,DuitNow,2026-10-02,FPX ref 8812\n2026-10,Rajesh,400,Bank transfer,2026-10-06,part payment\n2026-10,Parking 1,150,Cash,2026-10-03,",
+    ten:"Name,Phone,Type,Monthly,Start,End\nSiti,013-9876543,Tenant,700,2026-01-01,2026-12-31\nRajesh,011-5566778,Tenant,650,2026-03-01,2027-02-28\nParking 1,,Parking,150,,",
+    exp:"Month,Category,Amount\n2026-10,Mortgage,1850\n2026-10,Electricity (TNB),288\n2026-10,Water,48\n2026-10,Sewerage (IWK),15\n2026-10,Internet,120",
+    dep:"Tenant,Deposit,Movement,MovementAmount,Date,Reason\nSiti,1400,,,,\nAiman,,Deduction,350,2026-08-31,Wall repainting + missing 1 key\nWei Ling,1600,,,,\nWei Ling,,Refund,1600,2026-06-30,Deposit fully refunded"
+  };
+  dl(t[mode]||t.pay,"rental-tracker-template.csv","text/csv");
+}
+
+
+/* ================= GRAPHS (inline SVG, no libraries) ================= */
+function chartMonths(){
+  const all=Object.keys(MONTHS).sort();
+  const f=$("#chFrom")?$("#chFrom").value:"", t=$("#chTo")?$("#chTo").value:"";
+  let ks=all;
+  if(f) ks=ks.filter(k=>k>=f);
+  if(t) ks=ks.filter(k=>k<=t);
+  return ks;
+}
+function setChartRange(n){
+  const all=Object.keys(MONTHS).sort();
+  $("#chFrom").value = n ? (all[Math.max(0,all.length-n)]||"") : "";
+  $("#chTo").value   = all.length ? all[all.length-1] : "";
+  renderCharts();
+}
+/* grouped bar/line chart. series=[{name,color,vals:[..]}] */
+function svgChart(ks,series,fmt,opts){
+  opts=opts||{};
+  /* keys may be months (YYYY-MM) or rollup buckets (e.g. "2026"); label() handles both */
+  const label = opts.label || mLabel;
+  const W=Math.max(opts.w||720,260), H=opts.h||220, PL=54, PR=12, PT=14, PB=30;
+  const iw=W-PL-PR, ih=H-PT-PB;
+  if(!ks.length) return '<div class="note">No months in range.</div>';
+  const allV=series.flatMap(s=>s.vals);
+  let max=Math.max(...allV,1), min=Math.min(...allV,0);
+  if(opts.fromZero!==false && min>0) min=0;
+  const span=(max-min)||1;
+  const X=i=> PL + (ks.length===1?iw/2:(i*iw/(ks.length-1)));
+  const Y=v=> PT + ih - ((v-min)/span)*ih;
+  const ticks=4, gy=[];
+  for(let i=0;i<=ticks;i++){ const v=min+span*i/ticks; gy.push({y:Y(v),v}); }
+  let g="";
+  gy.forEach(t=>{ g+=`<line x1="${PL}" y1="${t.y.toFixed(1)}" x2="${W-PR}" y2="${t.y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>
+    <text x="${PL-6}" y="${(t.y+3).toFixed(1)}" font-size="9" fill="var(--dim)" text-anchor="end">${fmt(t.v)}</text>`; });
+  const every=ks.length>14?Math.ceil(ks.length/10):1;
+  ks.forEach((k,i)=>{ if(i%every===0)
+    g+=`<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="9" fill="var(--dim)" text-anchor="middle">${label(k)}</text>`; });
+  series.forEach(s=>{
+    if(opts.type==="line"||opts.type==="area"){
+      const pts=s.vals.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(" ");
+      if(opts.type==="area") g+=`<polygon points="${PL},${Y(0).toFixed(1)} ${pts} ${X(ks.length-1).toFixed(1)},${Y(0).toFixed(1)}" fill="${s.color}" opacity="0.12"/>`;
+      /* Split the line at every sign change so the stretches that run below zero can be
+         drawn in red. Each segment is stroked separately: a segment is red when either of
+         its endpoints is negative, which also paints the downward slope into a loss. */
+      const neg=s.negColor||"#dc2626";
+      let seg="";
+      for(let i=1;i<ks.length;i++){
+        const a=s.vals[i-1], b=s.vals[i];
+        const bad=(opts.negRed!==false)&&(a<0||b<0);
+        seg+=`<line x1="${X(i-1).toFixed(1)}" y1="${Y(a).toFixed(1)}" x2="${X(i).toFixed(1)}" y2="${Y(b).toFixed(1)}"
+          stroke="${bad?neg:s.color}" stroke-width="${bad?2.4:2}" stroke-linecap="round"/>`;
+      }
+      if(ks.length===1) seg+=`<circle cx="${X(0).toFixed(1)}" cy="${Y(s.vals[0]).toFixed(1)}" r="3" fill="${(opts.negRed!==false&&s.vals[0]<0)?neg:s.color}"/>`;
+      g+=seg;
+      /* zero baseline, so "below zero" is readable at a glance */
+      if(min<0) g+=`<line x1="${PL}" y1="${Y(0).toFixed(1)}" x2="${W-PR}" y2="${Y(0).toFixed(1)}" stroke="var(--dim)" stroke-width="1" stroke-dasharray="4 3"/>`;
+      s.vals.forEach((v,i)=>{ const bad=(opts.negRed!==false)&&v<0;
+        g+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${bad?3.2:2.6}" fill="${bad?neg:s.color}"><title>${label(ks[i])} · ${s.name}: ${fmt(v)}${bad?" (loss)":""}</title></circle>`; });
+    } else {
+      const bw=Math.max(3,Math.min(22,(iw/ks.length)*0.62/series.length));
+      s.vals.forEach((v,i)=>{
+        const x0=X(i)-(series.length*bw)/2+series.indexOf(s)*bw;
+        const y=Y(Math.max(v,0)), h=Math.abs(Y(v)-Y(0));
+        g+=`<rect x="${x0.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-1.5).toFixed(1)}" height="${Math.max(1,h).toFixed(1)}" fill="${s.color}" rx="2"><title>${label(ks[i])} · ${s.name}: ${fmt(v)}</title></rect>`;
+      });
+    }
+  });
+  const leg=series.map(s=>`<span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.color};vertical-align:middle"></i> ${esc(s.name)}</span>`).join(" ");
+  return `<div style="overflow-x:auto">${leg?`<div class="note" style="margin:0 0 6px">${leg}</div>`:""}
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="xMidYMid meet" role="img">${g}</svg></div>`;
+}
+/* donut chart. items=[{name,value,color}] */
+function svgDonut(items,fmt){
+  const tot=items.reduce((s,i)=>s+i.value,0);
+  if(!tot) return '<div class="note">Nothing to chart yet.</div>';
+  const S=200,R=80,r=48,cx=100,cy=100; let a0=-Math.PI/2, g="";
+  items.forEach(it=>{
+    const frac=it.value/tot, a1=a0+frac*Math.PI*2, big=frac>0.5?1:0;
+    const p=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
+    const[x1,y1]=p(R,a0),[x2,y2]=p(R,a1),[x3,y3]=p(r,a1),[x4,y4]=p(r,a0);
+    g+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${big} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${r},${r} 0 ${big} 0 ${x4.toFixed(2)},${y4.toFixed(2)} Z" fill="${it.color}"><title>${esc(it.name)}: ${fmt(it.value)} (${(frac*100).toFixed(1)}%)</title></path>`;
+    a0=a1;
+  });
+  const rows=items.map(it=>`<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${it.color};vertical-align:middle;margin-right:6px"></i>${esc(it.name)}</td><td class="num">${fmt(it.value)}</td><td class="num">${(it.value/tot*100).toFixed(1)}%</td></tr>`).join("");
+  return `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
+    <svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="flex:none">${g}
+      <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="13" fill="var(--dim)">Total</text>
+      <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--txt)">${fmt(tot)}</text></svg>
+    <div style="flex:1;min-width:220px"><table><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+function renderCharts(){
+  if(!$("#chIncome")) return;
+  const ks=chartMonths();
+  const money=v=>num(Math.round(v));
+  const PAL={rent:"#22c55e",park:"#0ea5e9",extra:"#a855f7",owner:"#ef4444",net:"#22c55e",fin:"#f59e0b"};
+  if(!ks.length){
+    ["chIncome","chNet","chDonut","chExpense","chBearer","chStack"].forEach(id=>{const e=$("#"+id);if(e)e.innerHTML='<div class="note">No data in range.</div>';});
+    return;
+  }
+  const C=ks.map(k=>calc(k));
+  $("#chIncome").innerHTML='<div class="note" style="margin:0 0 4px;font-weight:600">Income vs owner costs (RM)</div>'
+    +svgChart(ks,[
+      {name:"Rent",color:PAL.rent,vals:C.map(c=>c.rent)},
+      {name:"Parking",color:PAL.park,vals:C.map(c=>c.park)},
+      {name:"Other charges",color:PAL.extra,vals:C.map(c=>c.extra)},
+      {name:"Owner costs",color:PAL.owner,vals:C.map(c=>c.owner)}
+    ],money,{h:240,type:"bar"});
+  $("#chNet").innerHTML='<div class="note" style="margin:0 0 4px;font-weight:600">Net profit (RM)</div>'
+    +svgChart(ks,[{name:"Net profit",color:PAL.net,vals:C.map(c=>c.net)}],money,{h:170,type:"area"});
+  renderComposition(ks,C,money);
+}
+/* ---------- composition ----------
+   Two questions the old "Cumulative" card was not answering: WHERE does the money come from,
+   and WHERE does it go. Each can be read for one month or across the whole range. */
+let MIX_RANGE=false, MIX_UNIT="month";        // "month" | "year" for the two donuts
+function toggleMixRange(){ MIX_RANGE=!MIX_RANGE; renderCharts(); }
+function toggleMixUnit(){ MIX_UNIT = MIX_UNIT==="month" ? "year" : "month"; renderCharts(); }
+function mixCatColor(i){ return `hsl(${(i*47)%360} 62% 55%)`; }
+/* Sum a run of monthly calc() rows into one row per year. Every money field is additive;
+   margin is recomputed from the summed income rather than averaged, since averaging
+   percentages would not equal the year's actual margin. */
+function rollUp(ks,unit){
+  const key=m=> unit==="year" ? m.slice(0,4) : m.slice(0,7);
+  const order=[], acc={};
+  ks.forEach(m=>{
+    const k=key(m);
+    if(!acc[k]){ acc[k]={rent:0,park:0,extra:0,income:0,owner:0,tenantExp:0,net:0,outstanding:0}; order.push(k); }
+    const c=calc(m), a=acc[k];
+    ["rent","park","extra","income","owner","tenantExp","net","outstanding"].forEach(f=>{ a[f]+=(+c[f]||0); });
+  });
+  const rows=order.map(k=>{ const a=acc[k]; a.margin=a.income? a.net/a.income*100 : 0; return a; });
+  return {keys:order, rows:rows};
+}
+function renderComposition(ks,C,money){
+  const one=!MIX_RANGE, yearly=MIX_UNIT==="year";
+  const btn=$("#chMixRangeBtn");
+  if(btn) btn.textContent = one ? "Show whole range instead" : "Show single "+(yearly?"year":"month")+" instead";
+  const ub=$("#chMixUnit");
+  if(ub) ub.textContent = yearly ? "Yearly" : "Monthly";
+  const mm=$("#chMixMonth"), yv=$("#chMixYear");
+  const ml=$("#chMixMonthLbl"), yl=$("#chMixYearLbl");
+  if(ml) ml.hidden=yearly; if(mm) mm.hidden=yearly;
+  if(yl) yl.hidden=!yearly; if(yv) yv.hidden=!yearly;
+  // seed the year from the range so it is never blank
+  if(yearly && yv){
+    if(!yv.value) yv.value=(ks[ks.length-1]||CUR).slice(0,4);
+  }
+  const wantMonths = one
+    ? (yearly ? ks.filter(k=>k.slice(0,4)===String(yv&&yv.value)) : [ (mm&&mm.value) || ks[ks.length-1] ])
+    : ks;
+  /* An empty pick must say so, never silently widen to the whole range (which would show
+     unrelated figures under the year the user asked for). */
+  const empty = one && wantMonths.length===0;
+  const months = empty ? [] : wantMonths;
+  const lbl = one
+    ? (yearly ? String(yv&&yv.value||"") : mLabel((mm&&mm.value)||ks[ks.length-1]))
+    : "whole range";
+  const noData = `<div class="note">No records for <b>${esc(lbl)}</b> in this range.</div>`;
+  if(empty){ $("#chDonut").innerHTML=`<div class="note" style="font-weight:600;margin:0 0 6px">Income mix — ${esc(lbl)}</div>`+noData;
+             $("#chExpense").innerHTML=`<div class="note" style="font-weight:600;margin:16px 0 6px">Expense mix — ${esc(lbl)}</div>`+noData; }
+
+  // --- income composition: rent / parking / other charges ---
+  const inc=[];
+  let iRent=0,iPark=0,iExtra=0;
+  months.forEach(m=>{const c=calc(m); iRent+=c.rent; iPark+=c.park; iExtra+=c.extra;});
+  if(iRent>0)  inc.push({name:"Rent",value:iRent,color:PAL_RENT});
+  if(iPark>0)  inc.push({name:"Parking",value:iPark,color:PAL_PARK});
+  if(iExtra>0) inc.push({name:"Other charges",value:iExtra,color:PAL_EXTRA});
+  $("#chDonut").innerHTML=`<div class="note" style="margin:0 0 6px;font-weight:600">Income mix — ${lbl}</div>`+svgDonut(inc,money);
+
+  // --- expense composition, owner-borne and tenant-borne kept apart ---
+  /* One entry per CATEGORY, not per month-per-category. When the view covers a year (or the
+     whole range) the same category recurs every month, so pushing per month would list
+     "Mortgage" a dozen times. Aggregate by category name and keep the first colour. */
+  const byName={}, order=[];
+  months.forEach(m=>{
+    const r=MONTHS[m]||blank();
+    CFG.cats.forEach((c,i)=>{
+      const v=+r.exp[c.id]||0; if(!v) return;
+      if(!byName[c.name]){ byName[c.name]={name:c.name,value:0,color:mixCatColor(i),bearer:c.bearer==="tenant"}; order.push(c.name); }
+      byName[c.name].value+=v;
+    });
+  });
+  const eOwn=[], eTen=[];
+  order.forEach(n=>{ const x=byName[n]; (x.bearer?eTen:eOwn).push(x); });
+  const sum=a=>a.reduce((s,x)=>s+x.value,0);
+  const eOwnT=sum(eOwn), eTenT=sum(eTen), eTot=eOwnT+eTenT;
+  const legend=(arr,total)=>arr.slice().sort((a,b)=>b.value-a.value)
+    .map(x=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0">
+        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${x.color};margin-right:6px"></span>${esc(x.name)}</span>
+        <span class="num">${money(x.value)} <span class="note">${total?(x.value/total*100).toFixed(1):"0.0"}%</span></span></div>`).join("");
+  $("#chExpense").innerHTML=
+      `<div class="note" style="margin:16px 0 6px;font-weight:600">Expense mix — ${lbl}</div>`
+    + (eTot ? svgDonut([...(eOwnT?[{name:"Owner-borne",value:eOwnT,color:"#ef4444"}]:[]),
+                        ...(eTenT?[{name:"Tenant-borne",value:eTenT,color:"#0ea5e9"}]:[])],money)
+    + `<div style="display:flex;gap:22px;flex-wrap:wrap;margin-top:10px">
+         <div style="min-width:250px;flex:1"><div class="note" style="font-weight:600;margin-bottom:2px">Owner-borne ${money(eOwnT)}</div>${legend(eOwn,eOwnT)||'<div class="note">—</div>'}</div>
+         <div style="min-width:250px;flex:1"><div class="note" style="font-weight:600;margin-bottom:2px">Tenant-borne ${money(eTenT)}</div>${legend(eTen,eTenT)||'<div class="note">—</div>'}</div>
+       </div>`
+      : '<div class="note">No expenses recorded.</div>');
+
+  /* --- the two bar charts roll up the same way the donuts do, so a yearly view is
+     genuinely yearly rather than monthly bars with a yearly heading. --- */
+  const unit = one ? (yearly ? "year" : "month") : "month";
+  const gks = unit==="year" ? rollUp(ks,"year").keys : ks;
+  const GC   = unit==="year" ? rollUp(ks,"year").rows : C;
+  const unitLbl = unit==="year" ? "year" : "month";
+  const noun = unit==="year" ? "each year" : "each month";
+  const yrLabel = k=> unit==="year" ? String(k) : mLabel(k);
+  $("#chBearer").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">Who bears the cost — ${one?noun:"whole range (by month)"}</div>`
+    + svgChart(gks,[{name:"Owner-borne",color:"#ef4444",vals:GC.map(c=>c.owner)},
+                  {name:"Tenant-borne",color:"#0ea5e9",vals:GC.map(c=>c.tenantExp)}],money,{h:170,type:"bar",label:yrLabel});
+
+  $("#chStack").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">Income vs expenses by ${unitLbl} — ${one?"selected "+(unit==="year"?"year":"month"):"whole range"}</div>`
+    + svgChart(gks,[{name:"Income",color:"#22c55e",vals:GC.map(c=>c.income)},
+                  {name:"Owner costs",color:"#ef4444",vals:GC.map(c=>c.owner)}],money,{h:200,type:"bar",label:yrLabel});
+}
+const PAL_RENT="#22c55e", PAL_PARK="#0ea5e9", PAL_EXTRA="#a855f7";
+/* ---------- history / export ---------- */
+/* ---------- income tax (YA bands, editable) ---------- */
+/* Months of a YA in chronological order. The YA is the calendar year the income was EARNED,
+   so YA 2025 = Jan..Dec 2025 and is filed in 2026. */
+function taxMonths(){
+  const y=CFG_TAX.ya;
+  return Array.from({length:12},(_,i)=>y+"-"+String(i+1).padStart(2,"0"));
+}
+function taxInt(m){ const r=MONTHS[m]; return r? +(r.interest||0)||0 : 0; }
+function taxSetInt(m,v){ rec(m).interest=Math.max(0,+v||0); save(); taxRender(); }
+function taxPrefillAll(){
+  let n=0;
+  taxMonths().forEach(m=>{ const r=MONTHS[m]; if(!r) return;
+    const mo=+r.exp.mortgage||0; if(mo){ r.interest=mo; n++; } });
+  save(); taxRender();
+  const el=document.querySelector("#saveState");
+  if(el) el.textContent = n? ("Prefilled "+n+" month(s) from Mortgage") : "No Mortgage amounts recorded yet";
+}
+
+/* Progressive bands: each row is [upperBound, rate%]. Marginal, not flat —
+   only the slice of chargeable income inside a band is taxed at that band's rate. */
+function taxOf(chargeable){
+  const b=CFG_TAX.bands.filter(x=>x&&x[0]>0).sort((a,b)=>a[0]-b[0]);
+  if(!b.length) return 0;
+  if(chargeable<=0) return 0;
+  let tax=0, prev=0;
+  for(const [up,rate] of b){
+    if(chargeable<=prev) break;
+    const slice=Math.min(chargeable,up)-prev;      // part of the income falling in this band
+    tax+=slice*rate/100;
+    prev=up;
+    if(chargeable<=up) break;
+  }
+  return tax;
+}
+
+function taxCompute(){
+  const ms=taxMonths();
+  /* Only months that already have a record. calc() calls rec(), which CREATES a blank month as a
+     side effect — iterating all 12 would fill MONTHS with 12 empty months and pollute History. */
+  const have=ms.filter(m=>MONTHS[m]);
+  let income=0, rent=0, park=0, extra=0, tenantExp=0;
+  const ownerByCat={};
+  CFG.cats.forEach(c=>{ if(c.id==="mortgage") return; ownerByCat[c.id]={name:c.name,v:0,ded:catDeductible(c)}; });
+  have.forEach(m=>{
+    const c=calc(m);
+    income+=c.income; rent+=c.rent; park+=c.park; extra+=c.extra; tenantExp+=c.tenantExp;
+    CFG.cats.forEach(k=>{ if(k.id==="mortgage") return;                 // interest handled separately
+      if(k.bearer==="tenant") return;                                 // you never paid these
+      ownerByCat[k.id].v+=+((MONTHS[m]||{}).exp||{})[k.id]||0; });
+  });
+  const interest=have.reduce((s,m)=>s+taxInt(m),0);
+  /* Mortgage is EXCLUDED from the expense deduction: its interest component is deducted
+     on its own line below. Counting the full mortgage here as well would double-deduct it. */
+  const allOwner=Object.values(ownerByCat).reduce((s,o)=>s+o.v,0);
+  /* Only categories ticked "Tax deductible" in Setup reduce taxable income. An unticked
+     owner expense is still real cash out, so it is reported separately rather than hidden. */
+  const deductibleExp=Object.values(ownerByCat).reduce((s,o)=>s+(o.ded?o.v:0),0);
+  const ownerExp=deductibleExp;
+  const notDeduct=Object.values(ownerByCat).filter(o=>!o.ded&&o.v>0).sort((a,b)=>b.v-a.v);
+  const chargeable=Math.max(0,income-interest-ownerExp);
+  let tax=taxOf(chargeable);
+  /* LHDN tax rebate: RM400 off when chargeable income is at or below RM35,000. */
+  const rebate=(chargeable>0 && chargeable<=+(CFG_TAX.rebateMax||35000))?+(CFG_TAX.rebate||400):0;
+  return {ms,have,income,rent,park,extra,tenantExp,ownerExp,allOwner,notDeduct,ownerByCat,interest,chargeable,tax,rebate,
+          payable:Math.max(0,tax-rebate), effective:chargeable? (Math.max(0,tax-rebate))/chargeable*100:0};
+}
+
+function taxRender(){
+  const c=taxCompute(), y=CFG_TAX.ya;
+  const yaEl=$("#taxYa"); if(yaEl&&document.activeElement!==yaEl) yaEl.value=y;
+
+  /* --- per-month interest --- */
+  $("#taxIntBody").innerHTML=c.ms.map(m=>{
+    const r=MONTHS[m], auto=+(r?((r.exp||{}).mortgage)||0:0), v=taxInt(m);
+    /* Interest is only PART of a mortgage instalment — the rest is principal, which is NOT
+       deductible. If the prefilled figure still equals the whole instalment, say so plainly. */
+    const src = !r ? "no record" : v===auto ? "prefilled ⚠" : "entered";
+    return `<tr><td>${mLabel(m)}</td>
+      <td class="num"><input type="number" step="0.01" min="0" value="${v||""}"
+        style="width:120px;text-align:right" onchange="taxSetInt('${m}',this.value)"></td>
+      <td class="num note">${src}${auto&&v!==auto?` (mortgage ${rm(auto)})`:""}</td></tr>`;
+  }).join("");
+
+  /* --- yearly assessment --- */
+    const row=(l,v,cls="",note="")=>`<tr><td>${l}</td><td class="num ${cls}">${v}</td><td class="note">${note}</td></tr>`;
+    const cats=Object.values(c.ownerByCat).filter(o=>o.v>0&&o.ded).sort((a,b)=>b.v-a.v);
+    $("#taxOut").innerHTML=`
+    <p class="note"><b>Year of Assessment ${y}</b> — income earned ${y}, filed ${y+1}.</p>
+    <div class="scroll"><table><thead><tr><th>Line</th><th class="num">RM</th><th></th></tr></thead><tbody>
+    ${row("Rental income",rm(c.rent))}
+    ${row("Parking income",rm(c.park))}
+    ${row("Other charges collected",rm(c.extra))}
+    ${row("Total income",rm(c.income),"b")}
+    ${row("Less: interest paid",rm(-c.interest),"", "from the table above")}
+    ${cats.map(o=>row("Less: "+o.name,rm(-o.v))).join("")}
+    ${row(cats.length?"Total deductible owner expenses":"Deductible owner expenses",
+          rm(-c.ownerExp),"b", cats.length?"ticked in Setup":"none ticked, or none recorded")}
+    ${row("Taxable income",rm(c.chargeable),"b")}
+    ${row("Tax before rebate",rm(c.tax))}
+    ${row("Less: tax rebate",rm(-c.rebate),"", c.rebate?("(chargeable ≤ "+rm(CFG_TAX.rebateMax)+")"):"")}
+    ${row("Tax payable",rm(c.payable),"b", c.effective?("effective rate "+c.effective.toFixed(1)+"%"):"")}
+    </tbody></table></div>
+    ${c.notDeduct.length?`<p class="note">Not deducted (unticked in Setup, but still real cost):
+       ${c.notDeduct.map(o=>o.name+" "+rm(o.v)).join(" · ")}</p>`:""}
+    ${c.tenantExp?`<p class="note">Tenant-borne utilities (${rm(c.tenantExp)}) are <b>not</b> deducted — collected from tenants, never paid by you.</p>`:""}
+    ${!c.interest?`<p class="note">⚠️ No interest recorded for ${y}, so nothing has been deducted for it yet.</p>`:""}`;
+
+  /* --- editable bands --- */
+  $("#taxBandsBody").innerHTML=CFG_TAX.bands.map((b,i)=>`<tr>
+    <td class="num"><input type="number" step="1" min="0" value="${b[0]}"
+      style="width:130px;text-align:right" onchange="taxSetBand(${i},0,this.value)"></td>
+    <td class="num"><input type="number" step="0.01" min="0" value="${b[1]}"
+      style="width:90px;text-align:right" onchange="taxSetBand(${i},1,this.value)"></td>
+    <td><button class="b sec sm" onclick="taxDelBand(${i})">✕</button></td></tr>`).join("");
+}
+function taxSetYa(v){ if(v>=2020&&v<=2035){ CFG_TAX.ya=v; save(); taxRender(); } }
+function taxSetBand(i,f,v){ CFG_TAX.bands[i][f]=Math.max(0,+v||0); save(); taxRender(); }
+function taxDelBand(i){ CFG_TAX.bands.splice(i,1); save(); taxRender(); }
+function taxAddBand(){ const last=CFG_TAX.bands[CFG_TAX.bands.length-1];
+  CFG_TAX.bands.push([(last?last[0]:0)+50000,last?last[1]:5]); save(); taxRender(); }
+function taxResetBands(){ if(!confirm("Reset tax bands to the YA 2025 defaults?")) return;
+  CFG_TAX.bands=[[5000,0],[20000,1],[35000,3],[50000,8],[70000,11],[100000,19],
+                 [400000,25],[600000,26],[2000000,28]]; save(); taxRender(); }
+
+function renderHistory(){
+  const ks=Object.keys(MONTHS).sort().reverse();
+  $("#histBody").innerHTML=ks.map(m=>{const c=calc(m);
+    return `<tr><td>${mLabel(m)}</td><td class="num">${num(c.rent)}</td><td class="num">${num(c.park)}</td>
+    <td class="num">${num(c.owner)}</td><td class="num">${num(c.tenantExp)}</td>
+    <td class="num ${c.net>=0?"pos":"neg"}"><b>${num(c.net)}</b></td><td class="num">${c.margin.toFixed(1)}%</td>
+    <td class="note">${esc((MONTHS[m].notes||"").slice(0,60))}</td></tr>`;}).join("")
+    ||`<tr><td colspan="8" class="note">No months recorded yet.</td></tr>`;
+}
+function q(v){ const s=String(v==null?"":v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function exportCSV(kind){
+  const months=Object.keys(MONTHS).sort();
+  let head=[],body=[];
+  if(kind==="hist"||!kind){
+    head=["month","rent_in","parking_in","other_charges","total_income","owner_costs","tenant_borne","net_profit","margin_pct","outstanding","notes"];
+    months.forEach(m=>{const c=calc(m);
+      body.push([m,c.rent,c.park,c.extra,c.income,c.owner,c.tenantExp,c.net,c.margin.toFixed(2),c.outstanding,MONTHS[m].notes||""]);});
+  } else if(kind==="pay"){
+    head=["Month","Tenant","Type","Agreed","Amount","Method","Date","Note"];
+    months.forEach(m=>Object.keys((MONTHS[m].rent||{})).forEach(id=>{
+      const t=TEN.find(x=>x.id===id); if(!t) return; const r=MONTHS[m].rent[id]||{};
+      if(!r.amt && !r.note) return;
+      body.push([m,t.name,t.type,t.monthly,r.amt,r.method||"",r.date||"",r.note||""]);}));
+  } else if(kind==="ten"){
+    head=["Name","Phone","Type","Monthly","Start","End","LeaseStatus","DepositHeld","Deductions","Refunded","BalanceToReturn"];
+    TEN.forEach(t=>{const d=depTotals(t);
+      body.push([t.name,t.phone||"",t.type,t.monthly,t.start||"",t.end||"",leaseStatusText(t),d.held,d.ded,d.ref,d.bal]);});
+  } else if(kind==="exp"){
+    head=["Month","Category","Bearer","Amount"];
+    months.forEach(m=>CFG.cats.forEach(c=>{const a=+MONTHS[m].exp[c.id]||0; if(a) body.push([m,c.name,c.bearer,a]);}));
+  } else if(kind==="extra"){
+    head=["Month","Item","Amount","Note"];
+    months.forEach(m=>(MONTHS[m].extra||[]).forEach(e=>
+      body.push([m,e.name||"",e.amt||0,e.note||""])));
+  } else if(kind==="dep"){
+    head=["Tenant","Deposit","Movement","MovementAmount","Date","Reason"];
+    TEN.forEach(t=>{const d=depTotals(t), movs=depOf(t).movs;
+      body.push([t.name,d.held,"","","",""]);
+      movs.forEach(mv=>body.push([t.name,"",mv.type==="ref"?"Refund":"Deduction",mv.amt,mv.date,mv.reason||""]));});
+  }
+  dl([head.map(q).join(",")].concat(body.map(r=>r.map(q).join(","))).join("\n"),
+     "rental-tracker-"+(kind||"history")+".csv","text/csv");
+}
+function leaseStatusText(t,m){
+  if(!t.start&&!t.end) return "no dates";
+  const s=t.start?t.start.slice(0,7):"0000-00", e=t.end?t.end.slice(0,7):"9999-99", mm=m||CUR;
+  if(mm<s) return "upcoming"; if(mm>e) return "ended"; return "active";
+}
+function exportJSON(){ dl(JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD},null,2),"rental-tracker-backup.json","application/json"); save(); }
+function dl(txt,name,type){
+  const b=new Blob(["\uFEFF"+txt],{type}); const u=URL.createObjectURL(b);
+  const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+function importJSON(e){
+  const f=e.target.files[0]; if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ const d=JSON.parse(rd.result);
+      CFG=Object.assign(CFG,d.CFG||{}); TEN=d.TEN||TEN; MONTHS=d.MONTHS||MONTHS; CUR=d.CUR||CUR;
+      RC_HDR=d.RC_HDR||{}; RC_OWN=d.RC_OWN||{}; RC_PERIOD=d.RC_PERIOD||{};
+      boot(true); save(); alert("Restored."); }catch(err){alert("Could not read that file: "+err.message);} };
+  rd.readAsText(f);
+}
+function loadDemo(){
+  if(!confirm("Replace current data with sample data?"))return;
+  CFG.address="Taman Example, Shah Alam"; CFG.type="Terrace / landed";
+  CFG.mortgage=1850; CFG.maintenance=0; CFG.mortgage_end="2038-06"; CFG.owner="En. Lee";
+  // Aiman & Wei Ling have ENDED by Oct 2026 → they must disappear from the Oct list.
+  TEN=[{id:"t1",name:"Aiman",phone:"012-3456789",type:"Tenant",monthly:750,start:"2025-09-01",end:"2026-08-31",dep:{amount:1500,movs:[{id:"m1",date:"2026-08-31",type:"ded",amt:350,reason:"Wall repainting + missing 1 key"}]}},
+       {id:"t2",name:"Siti",phone:"013-9876543",type:"Tenant",monthly:700,start:"2026-01-01",end:"2026-12-31",dep:{amount:1400,movs:[]}},
+       {id:"t3",name:"Wei Ling",phone:"016-2233445",type:"Tenant",monthly:800,start:"2025-07-01",end:"2026-06-30",dep:{amount:1600,movs:[{id:"m2",date:"2026-06-30",type:"ref",amt:1600,reason:"Deposit fully refunded at move-out"}]}},
+       {id:"t4",name:"Rajesh",phone:"011-5566778",type:"Tenant",monthly:650,start:"2026-03-01",end:"2027-02-28",dep:{amount:650,movs:[]}},
+       {id:"p1",name:"Parking 1",phone:"",type:"Parking",monthly:150,start:"",end:"",dep:{amount:0,movs:[]}}];
+  MONTHS={"2026-08":{rent:{t1:{amt:750},t2:{amt:700},t3:{amt:800},t4:{amt:650},p1:{amt:150}},
+          exp:{mortgage:1850,electric:310,water:45,iwk:15,repairs:120,internet:120},meta:{},notes:"AC servicing for room 2"},
+          "2026-09":{rent:{t2:{amt:700},t4:{amt:650},p1:{amt:150}},
+          exp:{mortgage:1850,electric:395,water:52,iwk:15,internet:120,quit:450},meta:{tnb_prev:1120,tnb_cur:1395},notes:"Quit rent paid"},
+          "2026-10":{rent:{t2:{amt:700,method:"DuitNow",date:"2026-10-02",note:"FPX ref 8812"},t4:{amt:400,method:"Bank transfer",date:"2026-10-06",note:"part payment"},p1:{amt:150}},
+          exp:{mortgage:1850,electric:288,water:48,iwk:15,internet:120,repairs:60},meta:{tnb_prev:1395,tnb_cur:1560},notes:"Aiman & Wei Ling moved out — do not expect their rent"}};
+  CUR="2026-10"; DEPSEL="t2"; boot(true); save();
+}
+function wipe(){ if(confirm("Erase ALL data permanently?")){ localStorage.removeItem(KEY); CFG.cats=CFG.cats.filter(c=>c.id!=="mortgage"&&c.id!=="maintenance"); TEN=[]; MONTHS={}; DEPSEL=null; boot(true); } }
+
+/* ---------- setup ---------- */
+function renderSetup(){
+  $("#cfgAddr").value=CFG.address||""; $("#cfgType").value=CFG.type||"Terrace / landed";
+  $("#cfgMtg").value=CFG.mortgage||""; $("#cfgMaint").value=CFG.maintenance||"";
+  $("#cfgMtgEnd").value=CFG.mortgage_end||""; $("#cfgOwner").value=CFG.owner||"";
+  $("#cfgParking").value=CFG.parking||"";
+  $("#catBody").innerHTML=CFG.cats.map(c=>`<tr>
+    <td><input value="${esc(c.name)}" oninput="setC('${c.id}','name',this.value)"></td>
+    <td><select onchange="setC('${c.id}','bearer',this.value)"><option value="you" ${c.bearer==='you'?'selected':''}>You</option><option value="tenant" ${c.bearer==='tenant'?'selected':''}>Tenant</option></select></td>
+    <td><span class="note">${["assess","quit","insurance"].indexOf(c.id)>=0?"annual/periodic — enter only when paid":"monthly"}</span></td>
+    <td style="text-align:center"><input type="checkbox" ${catDeductible(c)?"checked":""} title="${esc(catDeductNote(c))}"
+        style="width:20px;height:20px;cursor:pointer" onchange="setCatDeduct('${c.id}',this.checked)"></td>
+    <td class="noprint"><button class="b sec sm" onclick="delCat('${c.id}')\">✕</button></td></tr>`).join("");
+}
+/* Which categories are tax-deductible by default. Mortgage is deliberately NOT here: only the
+   INTEREST portion of it is deductible, and that is entered on the Income Tax tab, so letting a
+   full mortgage instalment be deducted here would double-count the interest. */
+const CAT_DEDUCT_DEFAULT={quit:1,iwk:1,repairs:1,assess:1,insurance:1,agent:1,other:1,maintenance:1};
+function catDeductible(c){ return c.deduct!==undefined ? !!c.deduct : !!CAT_DEDUCT_DEFAULT[c.id]; }
+function catDeductNote(c){
+  if(c.id==="mortgage") return "Not deductible here — enter the interest portion on the Income Tax tab";
+  return catDeductible(c)?"Counted as a deductible expense in the Income Tax tab":"Excluded from the Income Tax tab";
+}
+function setCatDeduct(id,v){ const c=CFG.cats.find(x=>x.id===id); if(!c) return;
+  c.deduct=!!v; save(); renderSetup(); if($("#s-tax").classList.contains("on")) taxRender(); }
+function setC(id,f,v){ CFG.cats.find(c=>c.id===id)[f]=v; save(); renderMonth(); renderDash(); }
+function delCat(id){ if(!confirm("Remove this category?"))return; CFG.cats=CFG.cats.filter(c=>c.id!==id); renderSetup(); renderMonth(); save(); }
+function addCat(){ const n=prompt("Category name?"); if(n) CFG.cats.push({id:"c"+Date.now(),name:n,bearer:"you"}); renderSetup(); save(); }
+
+/* ---------- nav / boot ---------- */
+/* Native month inputs paint their own "09/2026" and ignore CSS, so each one gets wrapped in
+   a span with our own "Sep 2026" label layered on top. The input text is made transparent
+   (segments and picker arrow still work); the label is pointer-events:none so clicks reach
+   the input and open the native picker. Labels re-sync whenever the value is set from code
+   via the wrapped .value setter, and on any change/input. */
+const MONTH_IDS=["mMonth","dashMonth","chFrom","chTo","cfgMtgEnd","csvDefaultMonth"];
+function monthLabelText(v){
+  if(!v||v==="0000-00") return "—";
+  const p=String(v).split("-");
+  if(p.length<2) return String(v);
+  const d=new Date(Number(p[0]),Number(p[1])-1,1);
+  if(isNaN(d)) return String(v);
+  return d.toLocaleDateString("en-GB",{month:"short",year:"numeric"}); // Sep 2026
+}
+function syncMonthLabels(){
+  MONTH_IDS.forEach(id=>{
+    const e=$("#"+id); if(!e) return;
+    let lab=document.getElementById(id+"_mlab");
+    if(!lab){
+      const w=document.createElement("span");
+      w.className="mwrap";
+      if(e.parentNode) e.parentNode.insertBefore(w,e);
+      w.appendChild(e);
+      lab=document.createElement("span");
+      lab.className="mlab"; lab.id=id+"_mlab";
+      w.appendChild(lab);
+    }
+    lab.textContent=monthLabelText(e.value);
+  });
+}
+function hookMonthValues(){
+  const proto=HTMLInputElement.prototype, d=Object.getOwnPropertyDescriptor(proto,"value");
+  if(!d||!d.set||d.set.__hooked) return;
+  const set=function(v){ d.set.call(this,v); setTimeout(syncMonthLabels,0); };
+  set.__hooked=true;
+  Object.defineProperty(proto,"value",{get:d.get,set:set,configurable:true});
+}
+function go(s){
+  document.querySelectorAll("section").forEach(x=>x.classList.remove("on")); $("#s-"+s).classList.add("on");
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.s===s));
+  MONTH_IDS.forEach(id=>{ const e=$("#"+id); if(e&&!e.__synced){ e.__synced=1; e.addEventListener("change",syncMonthLabels); e.addEventListener("input",syncMonthLabels); } });
+  if(s==="dash")renderDash();
+  if(s==="month")renderMonth();
+  if(s==="tenants")renderTenants();
+  if(s==="deposit")renderDeposits();
+  if(s==="receipt"){ fillRcPicker(); renderReceipt(); }
+  if(s==="csv"){ if(!$("#csvDefaultMonth").value) $("#csvDefaultMonth").value=CUR; modeChanged(); }
+  if(s==="charts")renderCharts();
+  if(s==="history")renderHistory();
+  if(s==="setup")renderSetup();
+  if(s==="tax")taxRender();
+  renderRail();
+  syncMonthLabels();
+}
+function boot(skipLoad){
+  hookMonthValues();
+  if(!skipLoad) load();
+  $("#gMonth").value=CUR; $("#mMonth").value=CUR; $("#dashMonth").value=CUR;
+  renderTenants(); renderSetup(); loadMonth(); renderDash(); renderHistory(); renderDeposits(); renderCharts(); taxRender();
+  renderRail();
+  syncMonthViews();
+  save();
+}
+boot();
+window.addEventListener("beforeunload",save);
+</script>
+</body>
+</html>
