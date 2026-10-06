@@ -233,6 +233,16 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .gmonth label{font-size:12px;color:#666;font-weight:600}
 .gmonth input{margin:0}
 @media print{ .gmonth{display:none} }
+#gtip{position:fixed;z-index:9999;pointer-events:none;opacity:0;transition:opacity .1s;
+  background:#0f172a;color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.5;
+  box-shadow:0 8px 24px rgba(0,0,0,.28);max-width:260px}
+#gtip.on{opacity:1}
+#gtip .t{font-weight:700;margin-bottom:4px;font-size:12px;white-space:nowrap}
+#gtip .r{display:flex;gap:10px;align-items:center;white-space:nowrap}
+#gtip .r i{width:9px;height:9px;border-radius:2px;flex:none}
+#gtip .r .n{flex:1;overflow:hidden;text-overflow:ellipsis}
+#gtip .r .v{font-variant-numeric:tabular-nums;font-weight:600}
+@media print{ #gtip{display:none!important} }
 </style>
 </head>
 <body>
@@ -2283,6 +2293,34 @@ function csvTemplate(){
 
 
 /* ================= GRAPHS (inline SVG, no libraries) ================= */
+/* Hover readout. One shared tooltip element for the whole page; the SVG marks hit zones with
+   data-tip (HTML) and a delegated listener does the rest. Native <title> is deliberately not
+   used here: it needs ~1s to appear, cannot be styled, and shows only one value at a time. */
+function gtipShow(html,x,y){
+  const t=$("#gtip")||(()=>{const d=document.createElement("div");d.id="gtip";document.body.appendChild(d);return d;})();
+  t.innerHTML=html; t.classList.add("on");
+  const b=t.getBoundingClientRect(), W=window.innerWidth, H=window.innerHeight;
+  let left=x+14, top=y-b.height-12;
+  if(left+b.width>W-8) left=x-b.width-14;          // flip left when it would run off the right
+  if(left<8) left=8;
+  if(top<8) top=y+18;                               // flip below when it would run off the top
+  if(top+b.height>H-8) top=Math.max(8,H-b.height-8);
+  t.style.left=left+"px"; t.style.top=top+"px";
+}
+function gtipHide(){const t=$("#gtip"); if(t) t.classList.remove("on");}
+document.addEventListener("mouseover",e=>{
+  const el=e.target.closest?e.target.closest("[data-tip]"):null;
+  if(el){ gtipShow(el.getAttribute("data-tip"), e.clientX, e.clientY); }
+});
+document.addEventListener("mousemove",e=>{
+  const el=e.target.closest?e.target.closest("[data-tip]"):null;
+  if(el) gtipShow(el.getAttribute("data-tip"), e.clientX, e.clientY); else gtipHide();
+});
+document.addEventListener("mouseout",e=>{
+  const to=e.relatedTarget;
+  if(!(to && to.closest && to.closest("[data-tip]"))) gtipHide();
+});
+window.addEventListener("scroll",gtipHide,{passive:true});
 function chartMonths(){
   const all=Object.keys(MONTHS).sort();
   const f=$("#chFrom")?$("#chFrom").value:"", t=$("#chTo")?$("#chTo").value:"";
@@ -2339,13 +2377,43 @@ function svgChart(ks,series,fmt,opts){
       /* zero baseline, so "below zero" is readable at a glance */
       if(min<0) g+=`<line x1="${PL}" y1="${Y(0).toFixed(1)}" x2="${W-PR}" y2="${Y(0).toFixed(1)}" stroke="var(--dim)" stroke-width="1" stroke-dasharray="4 3"/>`;
       s.vals.forEach((v,i)=>{ const bad=(opts.negRed!==false)&&v<0;
-        g+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${bad?3.2:2.6}" fill="${bad?neg:s.color}"><title>${label(ks[i])} · ${s.name}: ${fmt(v)}${bad?" (loss)":""}</title></circle>`; });
+        g+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${bad?3.2:2.6}" fill="${bad?neg:s.color}"/>`; });
+      const zoneW2=Math.max(iw/ks.length,12);
+      ks.forEach((k,i)=>{
+        const zx=X(i)-zoneW2/2;
+        if(zx+zoneW2<PL || zx>W-PR) return;
+        const rowsS=series.map(s=>{
+          const v=s.vals[i], bad=(opts.negRed!==false)&&v<0;
+          /* single quotes only inside data-tip: the attribute itself is double-quoted, so any
+             double quote here would terminate it and silently drop the rest of the tooltip */
+          return `<div class='r'><i style='background:${bad?(s.negColor||"#dc2626"):s.color}'></i>
+            <span class='n'>${esc(s.name)}</span><span class='v'>${fmt(v)}</span></div>`;
+        }).join("");
+        g+=`<rect x="${Math.max(zx,PL).toFixed(1)}" y="${PT}" width="${Math.min(zx+zoneW2,W-PR)-Math.max(zx,PL)}" height="${ih}"
+          fill="transparent" style="cursor:crosshair" data-tip="&lt;div class='t'&gt;${esc(label(k))}&lt;/div&gt;${rowsS}"/>`;
+      });
     } else {
       const bw=Math.max(3,Math.min(22,(iw/ks.length)*0.62/series.length));
       s.vals.forEach((v,i)=>{
         const x0=X(i)-(series.length*bw)/2+series.indexOf(s)*bw;
         const y=Y(Math.max(v,0)), h=Math.abs(Y(v)-Y(0));
-        g+=`<rect x="${x0.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-1.5).toFixed(1)}" height="${Math.max(1,h).toFixed(1)}" fill="${s.color}" rx="2"><title>${label(ks[i])} · ${s.name}: ${fmt(v)}</title></rect>`;
+        g+=`<rect x="${x0.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-1.5).toFixed(1)}" height="${Math.max(1,h).toFixed(1)}" fill="${s.color}" rx="2"/>`;
+      });
+      /* Full-height transparent hit zone spanning the whole bucket, so hovering anywhere in the
+         column (not just the 4px bar) shows every series at once. Drawn last so it sits on top. */
+      const zoneW=Math.max(iw/ks.length,12);
+      ks.forEach((k,i)=>{
+        const zx=X(i)-zoneW/2;
+        if(zx+zoneW<PL || zx>W-PR) return;
+        const rowsS=series.map(s=>{
+          const v=s.vals[i], bad=(opts.negRed!==false)&&v<0;
+          /* single quotes only inside data-tip: the attribute itself is double-quoted, so any
+             double quote here would terminate it and silently drop the rest of the tooltip */
+          return `<div class='r'><i style='background:${bad?(s.negColor||"#dc2626"):s.color}'></i>
+            <span class='n'>${esc(s.name)}</span><span class='v'>${fmt(v)}</span></div>`;
+        }).join("");
+        g+=`<rect x="${Math.max(zx,PL).toFixed(1)}" y="${PT}" width="${Math.min(zx+zoneW,W-PR)-Math.max(zx,PL)}" height="${ih}"
+          fill="transparent" style="cursor:crosshair" data-tip="&lt;div class='t'&gt;${esc(label(k))}&lt;/div&gt;${rowsS}"/>`;
       });
     }
   });
@@ -2362,7 +2430,7 @@ function svgDonut(items,fmt){
     const frac=it.value/tot, a1=a0+frac*Math.PI*2, big=frac>0.5?1:0;
     const p=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
     const[x1,y1]=p(R,a0),[x2,y2]=p(R,a1),[x3,y3]=p(r,a1),[x4,y4]=p(r,a0);
-    g+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${big} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${r},${r} 0 ${big} 0 ${x4.toFixed(2)},${y4.toFixed(2)} Z" fill="${it.color}"><title>${esc(it.name)}: ${fmt(it.value)} (${(frac*100).toFixed(1)}%)</title></path>`;
+    g+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${big} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${r},${r} 0 ${big} 0 ${x4.toFixed(2)},${y4.toFixed(2)} Z" fill="${it.color}" style="cursor:pointer" data-tip="&lt;div class='t'&gt;${esc(it.name)}&lt;/div&gt;&lt;div class='r'&gt;&lt;i style='background:${it.color}'&gt;&lt;/i&gt;&lt;span class='n'&gt;${fmt(it.value)}&lt;/span&gt;&lt;span class='v'&gt;${(frac*100).toFixed(1)}%&lt;/span&gt;&lt;/div&gt;"/&gt;`;
     a0=a1;
   });
   const rows=items.map(it=>`<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${it.color};vertical-align:middle;margin-right:6px"></i>${esc(it.name)}</td><td class="num">${fmt(it.value)}</td><td class="num">${(it.value/tot*100).toFixed(1)}%</td></tr>`).join("");
