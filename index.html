@@ -292,6 +292,7 @@ tr[data-state="ended"] .pill{filter:none}
   <button class="b sec sm" onclick="window.print()">🖨 Print</button>
 </header>
 
+<div id="bkBanner" class="noprint" hidden style="margin:10px 20px 0;padding:9px 12px;border-radius:8px;background:#3a2a0a;border:1px solid var(--warn);color:var(--txt);font-size:13px;display:none;gap:10px;align-items:center;flex-wrap:wrap"></div>
 <nav>
   <button data-s="dash" class="on" onclick="go('dash')">Dashboard</button>
   <button data-s="month" onclick="go('month')">Monthly Update</button>
@@ -358,6 +359,11 @@ tr[data-state="ended"] .pill{filter:none}
     </div>
   </div>
 
+  <div class="card" id="oddWarningsCard" aria-live="polite" aria-atomic="true">
+    <h2>Entry checks</h2>
+    <div id="oddWarnings" class="note">No issues detected.</div>
+  </div>
+
   <div class="card">
     <h2>Rent collected per tenant</h2>
     <div class="scroll"><table class="tight"><thead><tr><th>Tenant / Parking</th><th class="num">Agreed</th><th class="num">Paid</th><th class="num">Received</th><th class="num">Balance</th><th>Method</th><th>Paid on</th><th>Note</th></tr></thead>
@@ -415,6 +421,9 @@ tr[data-state="ended"] .pill{filter:none}
     <h2>Tenants &amp; car parking</h2>
     <div class="tnt-bar">
       <span class="tnt-count" id="tntCount"></span>
+      <input id="tenantSearch" type="search" placeholder="Search name or phone…" aria-label="Search tenants by name or phone" oninput="renderTenants()" style="max-width:240px">
+      <select id="tenantTypeFilter" aria-label="Filter tenant type" onchange="renderTenants()" style="max-width:150px"><option value="">All types</option><option value="Tenant">Tenants</option><option value="Parking">Parking</option></select>
+      <select id="tenantStatusFilter" aria-label="Filter lease status" onchange="renderTenants()" style="max-width:160px"><option value="">All lease statuses</option><option value="active">Active</option><option value="upcoming">Upcoming</option><option value="ended">Ended</option></select>
       <span class="spacer"></span>
       <label class="ar-toggle"><input type="checkbox" id="tntShowEnded" onchange="renderTenants()"> Show ended tenants</label>
       <span class="note" id="tntHideNote"></span>
@@ -461,7 +470,7 @@ tr[data-state="ended"] .pill{filter:none}
     <div class="grid">
       <div><label>Receipt month</label><select id="rcMonth" onchange="rcSync()"></select></div>
       <div><label>Tenant / parking</label><select id="rcWho" onchange="rcSync()"></select></div>
-      <div><label>Receipt no.</label><input id="rcNo" oninput="renderReceipt()"></div>
+      <div><label>Receipt no. (auto-generated)</label><input id="rcNo" readonly aria-label="Automatically generated receipt number" title="Assigned once per tenant and month; remains stable in backups"></div>
       <div><label>Payment date</label><input type="date" id="rcDate" onchange="renderReceipt()"></div>
       <div><label>Amount override (optional)</label><input type="number" step="0.01" id="rcAmt" oninput="renderReceipt()" placeholder="use recorded amount"></div>
       <div><label>Method</label><select id="rcMethod" onchange="renderReceipt()"></select></div>
@@ -544,8 +553,24 @@ tr[data-state="ended"] .pill{filter:none}
     <div id="chNet"></div>
   </div>
   <div class="card">
-    <h2>Composition</h2>
-    <div class="note" style="margin:0 0 10px">Split by month or by year, or across the whole range. The two donuts follow the picker; the bar charts always cover the selected range.</div>
+    <h2>Custom graph (two axes)</h2>
+    <div class="note" style="margin:0 0 10px">X-axis is the month. Pick one item for the <b style="color:#3b82f6">left</b> axis and another for the <b style="color:#f59e0b">right</b> axis. The list includes every expense category from Setup, so new categories appear here automatically. Uses the From / To range above.</div>
+    <div class="grid" style="margin-bottom:12px">
+      <div><label>Left axis — item 1</label><select id="cgL" onchange="cgSet('l',this.value)"></select></div>
+      <div><label>Left axis — style</label><select id="cgLT" onchange="cgSet('lt',this.value)"><option value="bar">Bars</option><option value="line">Line</option></select></div>
+      <div><label>Right axis — item 2</label><select id="cgR" onchange="cgSet('r',this.value)"></select></div>
+      <div><label>Right axis — style</label><select id="cgRT" onchange="cgSet('rt',this.value)"><option value="line">Line</option><option value="bar">Bars</option></select></div>
+    </div>
+    <div id="chCustom"></div>
+  </div>
+  <div class="card">
+    <h2>Year-on-year, yield &amp; collection</h2>
+    <div class="note" style="margin:0 0 10px">Follows the month selected in the right-hand panel. Costs going <i>down</i> show green.</div>
+    <div id="chYoY"></div>
+  </div>
+  <div class="card">
+    <h2>Income &amp; Expense Breakdown</h2>
+    <div class="note" style="margin:0 0 10px">See where income comes from, which expense categories cost the most, and how income compares with recorded costs. Choose one month/year or view the whole selected range.</div>
     <div class="row-actions" style="margin-bottom:12px">
       <button class="b sm" id="chMixUnit" onclick="toggleMixUnit()">Monthly</button>
       <span class="spacer"></span>
@@ -555,6 +580,7 @@ tr[data-state="ended"] .pill{filter:none}
       <button class="b sec sm" id="chMixRangeBtn" onclick="toggleMixRange()">Show whole range instead</button>
     </div>
     <div id="chDonut"></div>
+    <div id="chAllocation"></div>
     <div id="chExpense"></div>
     <div id="chBearer"></div>
     <div id="chStack"></div>
@@ -650,6 +676,7 @@ tr[data-state="ended"] .pill{filter:none}
       <div><label>Maintenance fee (RM)</label><input type="number" step="0.01" id="cfgMaint" oninput="CFG.maintenance=+this.value;save()"></div>
       <div><label>Mortgage end date</label><input type="month" id="cfgMtgEnd" onchange="CFG.mortgage_end=this.value;save()"></div>
       <div><label>Landlord name (for receipts)</label><input id="cfgOwner" oninput="CFG.owner=this.value;save()"></div>
+      <div><label>Property value (RM, optional — for yield)</label><input type="number" step="1" id="cfgValue" oninput="CFG.value=+this.value;save();renderCharts()"></div>
       <div><label>Parking label / location (for parking receipts)</label><input id="cfgParking" oninput="CFG.parking=this.value;save()" placeholder="e.g. Car park Lot B-12, ground floor"></div>
     </div>
     <div class="note">Mortgage + maintenance fee are set once here, then auto-filled into every month's expenses. Change them any time — history keeps what you actually entered.</div>
@@ -745,7 +772,7 @@ let CFG={address:"",type:"Terrace / landed",mortgage:0,maintenance:0,mortgage_en
 let CFG_TAX={ya:2025,bands:[[5000,0],[20000,1],[35000,3],[50000,8],[70000,11],[100000,19],
   [400000,25],[600000,26],[2000000,28]],rebate:400,rebateMax:35000};
 let TEN=[]; let MONTHS={}; let CUR=nowMonth(); let M=null; let DEPSEL=null; let IMP=null;
-let RC_HDR={}; let RC_OWN={}; let RC_PERIOD={}; let RC_WHO_MONTH=null;   // month the tenant dropdown was last built for   // receipt header/owner overrides + edited period per tenant|month
+let RC_HDR={}; let RC_OWN={}; let RC_PERIOD={}; let RC_NUMBERS={}; let RC_SEQ=1; let RC_WHO_MONTH=null;   // month the tenant dropdown was last built for   // receipt header/owner overrides + edited period per tenant|month
 const METHODS=["Bank transfer","DuitNow","FPX","Cash","Cheque","Other"];
 
 const $ = s=>document.querySelector(s);
@@ -754,10 +781,10 @@ const $ = s=>document.querySelector(s);
 const id2 = a=>{let r=0;for(const c of String(a==null?"":a))r=(r*31+c.charCodeAt(0))>>>0;return r;};
 
 /* ---------- persistence ---------- */
-function save(){try{localStorage.setItem(KEY,JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,TAX:CFG_TAX,SHOW_ENDED:(document.getElementById("tntShowEnded")||{}).checked?1:0}));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,RC_NUMBERS,RC_SEQ,TAX:CFG_TAX,SHOW_ENDED:(document.getElementById("tntShowEnded")||{}).checked?1:0}));}catch(e){}
   const el=$("#saveState"); if(el) el.textContent="saved "+new Date().toLocaleTimeString();}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));
-  if(d&&d.SHOW_ENDED!=null) setTimeout(()=>{const c=$("#tntShowEnded"); if(c)c.checked=!!d.SHOW_ENDED;},0);if(d){CFG=Object.assign(CFG,d.CFG||{});TEN=d.TEN||[];MONTHS=d.MONTHS||{};CUR=d.CUR||nowMonth();RC_HDR=d.RC_HDR||{};RC_OWN=d.RC_OWN||{};RC_PERIOD=d.RC_PERIOD||{};if(d.TAX)CFG_TAX=Object.assign(CFG_TAX,d.TAX);}}catch(e){}
+  if(d&&d.SHOW_ENDED!=null) setTimeout(()=>{const c=$("#tntShowEnded"); if(c)c.checked=!!d.SHOW_ENDED;},0);if(d){CFG=Object.assign(CFG,d.CFG||{});TEN=d.TEN||[];MONTHS=d.MONTHS||{};CUR=d.CUR||nowMonth();RC_HDR=d.RC_HDR||{};RC_OWN=d.RC_OWN||{};RC_PERIOD=d.RC_PERIOD||{};RC_NUMBERS=d.RC_NUMBERS||{};RC_SEQ=Number.isInteger(d.RC_SEQ)&&d.RC_SEQ>0?d.RC_SEQ:(Math.max(0,...Object.values(RC_NUMBERS).map(n=>parseInt(String(n).split("-").pop(),10)||0))+1);if(d.TAX)CFG_TAX=Object.assign(CFG_TAX,d.TAX);}}catch(e){}
   TEN.forEach(t=>{ t.dep=t.dep||{amount:0,movs:[]}; t.dep.movs=t.dep.movs||[]; }); }
 
 function nowMonth(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
@@ -1123,8 +1150,9 @@ function renderMonth(){
   $("#mHint").textContent="editing "+mLabel(CUR);
   renderExtras();
   renderMonthSummary();
+  renderOddWarnings();
 }
-function setExp(cid,v){ Mc().exp[cid]=+v||0; save(); renderMonthSummary(); renderDash(); }
+function setExp(cid,v){ Mc().exp[cid]=+v||0; save(); renderMonthSummary(); renderDash(); renderOddWarnings(); }
 /* ---------- other charges collected (aircon top-up etc.) ---------- */
 /* NOTE: this assigns onto the passed object, so it must never be handed a temporary.
    renderExtras passes M (possibly undefined) through Mc() first. */
@@ -1180,7 +1208,7 @@ function setRent(tid,v){
      being typed into): it is checked exactly when the typed figure covers the full rent. */
   const tr=document.querySelector("#rentBody tr[data-rid='"+tid+"']");
   if(tr){ const cb=tr.querySelector("input[type=checkbox]"); if(cb) cb.checked=(amt>0&&bal>=0); }
-  save(); renderMonthSummary(); renderDash();
+  save(); renderMonthSummary(); renderDash(); renderOddWarnings();
 }
 /* Tick = "paid in full". Ticking writes the agreed rent into Received and stamps today as
    the payment date, so the common case is one click. Unticking clears the amount and date,
@@ -1193,8 +1221,32 @@ function togglePaid(tid,on){
   else  { r.amt=0; r.date=""; }
   save(); renderMonth(); renderDash();
 }
-function setField(f,v,tid){ const r=rec(CUR).rent[tid]=rec(CUR).rent[tid]||{}; r[f]=v; save(); }
+function setField(f,v,tid){ const r=rec(CUR).rent[tid]=rec(CUR).rent[tid]||{}; r[f]=v; save(); renderOddWarnings(); }
 function setBearer(cid,v){ CFG.cats.find(c=>c.id===cid).bearer=v; save(); renderMonthSummary(); renderDash(); }
+
+/* ---------- entry validation / unusual-entry warnings ---------- */
+function renderOddWarnings(){
+  const host=$("#oddWarnings"); if(!host) return;
+  const month=CUR, data=MONTHS[month]||{}, rents=data.rent||{}, exps=data.exp||{}, issues=[];
+  TEN.forEach(t=>{
+    if(t.start&&t.end&&t.start>t.end) issues.push({level:"critical",text:`${t.name}: lease start is after lease end.`});
+    const r=rents[t.id]||{}, amount=Number(r.amt)||0, agreed=Number(t.monthly)||0;
+    if(amount<0) issues.push({level:"critical",text:`${t.name}: rent received is negative (${rm(amount)}).`});
+    if(amount>agreed && agreed>=0) issues.push({level:"warning",text:`${t.name}: received ${rm(amount)} exceeds agreed monthly amount ${rm(agreed)}.`});
+    if(r.date && String(r.date).slice(0,7)!==month) issues.push({level:"warning",text:`${t.name}: payment date ${r.date} is outside selected month ${mLabel(month)}.`});
+  });
+  Object.entries(exps).forEach(([cid,v])=>{
+    const n=Number(v)||0, cat=CFG.cats.find(c=>c.id===cid);
+    if(n<0) issues.push({level:"critical",text:`${cat?cat.name:cid}: expense is negative (${rm(n)}).`});
+    if(n>10000) issues.push({level:"warning",text:`${cat?cat.name:cid}: ${rm(n)} is unusually high for one month. Please verify.`});
+    const prevKey=Object.keys(MONTHS).filter(k=>k<month).sort().pop(), prev=prevKey&&MONTHS[prevKey]&&MONTHS[prevKey].exp?Number(MONTHS[prevKey].exp[cid])||0:0;
+    if(prev>0 && n>prev*3 && n-prev>=200) issues.push({level:"warning",text:`${cat?cat.name:cid}: ${rm(n)} is over 3× the previous recorded month (${mLabel(prevKey)}: ${rm(prev)}).`});
+  });
+  TEN.forEach(t=>{ const d=depTotals(t); if(d.bal<-.005) issues.push({level:"critical",text:`${t.name}: deposit deductions/refunds exceed the deposit held by ${rm(-d.bal)}.`}); });
+  const critical=issues.filter(x=>x.level==="critical").length;
+  if(!issues.length){host.innerHTML='<span class="pill ok">No issues detected</span> <span>Check runs for the selected month and tenant records.</span>';return;}
+  host.innerHTML=`<div style="margin-bottom:8px"><span class="pill ${critical?'bad':'warn'}">${issues.length} item${issues.length===1?'':'s'} to review</span> <span class="note">Warnings are advisory; verify before issuing receipts or relying on reports.</span></div><ul style="margin:6px 0;padding-left:22px">${issues.map(x=>`<li style="margin:5px 0"><b>${x.level==='critical'?'Check required':'Review'}:</b> ${esc(x.text)}</li>`).join('')}</ul>`;
+}
 
 /* ---------- monthly maths ---------- */
 function calc(m){
@@ -1880,7 +1932,12 @@ function renderTenants(){
   const cnt=$("#tntCount"); if(cnt) cnt.textContent=`${TEN.length} record${TEN.length===1?"":"s"}`;
   const hn=$("#tntHideNote");
   if(hn) hn.textContent = (!showEnded && endedN) ? `${endedN} ended hidden — history still counted` : "";
-  const list=showEnded?states:states.filter(x=>x.st!=="ended");
+  const query=(($("#tenantSearch")||{}).value||"").trim().toLocaleLowerCase();
+  const typeFilter=(($("#tenantTypeFilter")||{}).value||"");
+  const statusFilter=(($("#tenantStatusFilter")||{}).value||"");
+  const list=(showEnded?states:states.filter(x=>x.st!=="ended")).filter(({t,st})=>
+    (!query||String(t.name||"").toLocaleLowerCase().includes(query)||String(t.phone||"").toLocaleLowerCase().includes(query)) &&
+    (!typeFilter||t.type===typeFilter) && (!statusFilter||st===statusFilter));
   $("#tntBody").innerHTML=list.map(({t,st})=>`<tr data-tid="${t.id}" data-state="${st}">
     <td><input style="width:100%;min-width:132px" value="${esc(t.name)}" oninput="setT('${t.id}','name',this.value)"></td>
     <td><input style="width:100%;min-width:130px" value="${esc(t.phone||'')}" oninput="setT('${t.id}','phone',this.value)"></td>
@@ -1891,6 +1948,7 @@ function renderTenants(){
     <td data-status>${leaseStatus(t,CUR)}</td>
     <td class="noprint"><button class="b sec sm" onclick="delTenant('${t.id}')\">✕</button></td></tr>`).join("")
     ||`<tr><td colspan="8" class="note">Nothing yet.</td></tr>`;
+  if(cnt) cnt.textContent=`${list.length} shown / ${TEN.length} record${TEN.length===1?"":"s"}`;
   tntTotalRow();
 }
 /* Expected monthly income counts only leases that are actually active for the month
@@ -2113,7 +2171,26 @@ function rcSync(){
   $("#rcAmt").value=rec0.amt||"";
   $("#rcDate").value=rec0.date||today();
   $("#rcMethod").value=rec0.method||METHODS[0];
-  $("#rcNo").value="R-"+m.replace("-","")+"-"+(t?t.id.replace(/[^a-z0-9]/gi,"").slice(-3).toUpperCase():"000");
+  const rcKey=(who||"none")+"|"+m;
+  const prefix=(t&&t.type==="Parking")?"P":"R";
+  const period=m.replace("-","");
+  if(who){
+    if(!RC_NUMBERS[rcKey]){
+      RC_NUMBERS[rcKey]=prefix+"-"+period+"-"+String(RC_SEQ++).padStart(4,"0");
+      save();
+    }else{
+      /* Upgrade previously saved RENT-YYYY-XXXX / PARK-YYYY-XXXX numbers to the
+         preferred R-YYYYMM-XXXX / P-YYYYMM-XXXX format, preserving the running number. */
+      const old=String(RC_NUMBERS[rcKey]);
+      const seq=old.match(/-(\d{4})$/);
+      const expected=prefix+"-"+period+"-";
+      if(!old.startsWith(expected) && seq){
+        RC_NUMBERS[rcKey]=expected+seq[1];
+        save();
+      }
+    }
+  }
+  $("#rcNo").value=RC_NUMBERS[rcKey]||(prefix+"-"+period+"-PENDING");
   renderReceipt();
 }
 function setRcHdr(k,v){ RC_HDR[k]=v; save(); }
@@ -2183,8 +2260,7 @@ function renderReceipt(){
     <div class="paper">
       <input type="text" id="rcTitle" value="${esc(hdrVal)}" oninput="setRcHdr('${hdrKey}',this.value)"
         style="width:100%;border:0;border-bottom:1px solid #ccc;background:transparent;font-size:21px;font-weight:700;letter-spacing:.5px;color:#111;padding:2px 0" placeholder="Address or label">
-      <div class="sub" style="margin-top:6px"><input type="text" id="rcOwnerLine" value="${esc(ownerVal)}" oninput="setRcOwn('${ownKey}',this.value)"
-        style="width:70%;border:0;background:transparent;font-size:13px;color:#555;padding:2px 0" placeholder="Landlord name"> &nbsp;•&nbsp; Receipt No. ${esc(no)}</div>
+      <div class="sub" style="margin-top:6px">Receipt No. ${esc(no)}</div>
       <table>
         <tr><th style="width:34%">Received from</th><td><b>${esc(t.name)}</b>${t.phone?" ("+esc(t.phone)+")":""}</td></tr>
         <tr><th>Description</th><td>${isPark?"Car parking":t.type==="Parking"?"Car parking":"Rent"} — ${mLabel(m)}${!isPark&&+t.monthly?" @ "+rm(t.monthly)+"/month":""}</td></tr>
@@ -2619,7 +2695,7 @@ function renderCharts(){
   const money=v=>num(Math.round(v));
   const PAL={rent:"#22c55e",park:"#0ea5e9",extra:"#a855f7",owner:"#ef4444",net:"#22c55e",fin:"#f59e0b"};
   if(!ks.length){
-    ["chIncome","chNet","chDonut","chExpense","chBearer","chStack"].forEach(id=>{const e=$("#"+id);if(e)e.innerHTML='<div class="note">No data in range.</div>';});
+    ["chIncome","chNet","chCustom","chYoY","chDonut","chAllocation","chExpense","chBearer","chStack"].forEach(id=>{const e=$("#"+id);if(e)e.innerHTML='<div class="note">No data in range.</div>';});
     return;
   }
   const C=ks.map(k=>calc(k));
@@ -2632,7 +2708,127 @@ function renderCharts(){
     ],money,{h:240,type:"bar"});
   $("#chNet").innerHTML='<div class="note" style="margin:0 0 4px;font-weight:600">Net profit (RM)</div>'
     +svgChart(ks,[{name:"Net profit",color:PAL.net,vals:C.map(c=>c.net)}],money,{h:170,type:"area"});
+  renderCustomGraph(ks,money); renderYoY();
   renderComposition(ks,C,money);
+}
+
+/* ---------- custom dual-axis graph ----------
+   Left and right axes each plot one chosen item per month. Items = the fixed income/total
+   figures from calc() plus every expense category in Setup (CFG.cats), so it always follows
+   the Expense categories list. The choice is stored in CFG.cg and so survives reloads/backups. */
+function cgItems(){
+  const base=[
+    {id:"inc:income",name:"Total income",grp:"Income & totals",get:(k,c)=>c.income},
+    {id:"inc:rent",name:"Rent received",grp:"Income & totals",get:(k,c)=>c.rent},
+    {id:"inc:park",name:"Parking received",grp:"Income & totals",get:(k,c)=>c.park},
+    {id:"inc:extra",name:"Other charges received",grp:"Income & totals",get:(k,c)=>c.extra},
+    {id:"inc:owner",name:"Owner costs (total)",grp:"Income & totals",get:(k,c)=>c.owner},
+    {id:"inc:tenantExp",name:"Tenant-borne costs (total)",grp:"Income & totals",get:(k,c)=>c.tenantExp},
+    {id:"inc:net",name:"Net profit",grp:"Income & totals",get:(k,c)=>c.net},
+    {id:"inc:outstanding",name:"Rent outstanding",grp:"Income & totals",get:(k,c)=>c.outstanding}
+  ];
+  const cats=CFG.cats.map(c=>({id:"cat:"+c.id,name:c.name,grp:"Expense categories (Monthly expenses)",
+    get:(k)=>+(((MONTHS[k]||{}).exp||{})[c.id])||0}));
+  return base.concat(cats);
+}
+function cgState(items){
+  const g=CFG.cg=CFG.cg||{};
+  const ok=id=>items.some(i=>i.id===id);
+  if(!ok(g.l)) g.l="inc:income";
+  if(!ok(g.r)) g.r="inc:net";
+  if(g.lt!=="bar"&&g.lt!=="line") g.lt="bar";
+  if(g.rt!=="bar"&&g.rt!=="line") g.rt="line";
+  return g;
+}
+function cgSet(f,v){ (CFG.cg=CFG.cg||{})[f]=v; save(); renderCharts(); }
+function cgFillSelect(sel,items,val){
+  if(!sel) return;
+  const groups=[]; items.forEach(i=>{ let g=groups.find(x=>x.n===i.grp); if(!g){g={n:i.grp,a:[]};groups.push(g);} g.a.push(i); });
+  sel.innerHTML=groups.map(g=>`<optgroup label="${esc(g.n)}">${g.a.map(i=>`<option value="${esc(i.id)}">${esc(i.name)}</option>`).join("")}</optgroup>`).join("");
+  sel.value=val;
+}
+function renderCustomGraph(ks,money){
+  const box=$("#chCustom"); if(!box) return;
+  const items=cgItems(), g=cgState(items);
+  cgFillSelect($("#cgL"),items,g.l); cgFillSelect($("#cgR"),items,g.r);
+  if($("#cgLT")) $("#cgLT").value=g.lt; if($("#cgRT")) $("#cgRT").value=g.rt;
+  const il=items.find(i=>i.id===g.l), ir=items.find(i=>i.id===g.r);
+  const C=ks.map(k=>calc(k));
+  box.innerHTML=cgChart(ks,[
+    {name:il.name,color:"#3b82f6",type:g.lt,vals:ks.map((k,i)=>il.get(k,C[i]))},
+    {name:ir.name,color:"#f59e0b",type:g.rt,vals:ks.map((k,i)=>ir.get(k,C[i]))}
+  ],money);
+}
+/* two independent y-axes (S[0] = left, S[1] = right). Both axes use 4 equal steps so the
+   gridlines line up even though the scales differ. Each axis is coloured to match its series. */
+function cgChart(ks,S,fmt){
+  const W=720,H=270,PL=62,PR=62,PT=16,PB=30, iw=W-PL-PR, ih=H-PT-PB, n=ks.length;
+  if(!n) return '<div class="note">No months in range.</div>';
+  const sc=S.map(s=>{ let mx=Math.max(...s.vals,0), mn=Math.min(...s.vals,0); if(mx===mn) mx=mn+1; return {mx,mn,span:mx-mn}; });
+  const X=i=>PL+(i+0.5)*iw/n;
+  const Y=(v,j)=>PT+ih-((v-sc[j].mn)/sc[j].span)*ih;
+  let g="";
+  for(let t=0;t<=4;t++){
+    const y=PT+ih-ih*t/4;
+    g+=`<line x1="${PL}" y1="${y.toFixed(1)}" x2="${W-PR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
+    g+=`<text x="${PL-6}" y="${(y+3).toFixed(1)}" font-size="9" fill="${S[0].color}" text-anchor="end">${fmt(sc[0].mn+sc[0].span*t/4)}</text>`;
+    g+=`<text x="${W-PR+6}" y="${(y+3).toFixed(1)}" font-size="9" fill="${S[1].color}" text-anchor="start">${fmt(sc[1].mn+sc[1].span*t/4)}</text>`;
+  }
+  const every=n>14?Math.ceil(n/10):1;
+  ks.forEach((k,i)=>{ if(i%every===0) g+=`<text x="${X(i).toFixed(1)}" y="${H-8}" font-size="9" fill="var(--dim)" text-anchor="middle">${mLabel(k)}</text>`; });
+  /* zero line for any axis whose range dips below zero */
+  S.forEach((s,j)=>{ if(sc[j].mn<0) g+=`<line x1="${PL}" y1="${Y(0,j).toFixed(1)}" x2="${W-PR}" y2="${Y(0,j).toFixed(1)}" stroke="${s.color}" stroke-width="1" stroke-dasharray="4 3" opacity=".6"/>`; });
+  /* bars first, lines on top */
+  const bars=S.map((s,j)=>({s,j})).filter(o=>o.s.type==="bar");
+  const slot=iw/n, bw=Math.max(3,Math.min(26,slot*0.62/Math.max(bars.length,1)));
+  bars.forEach((o,bi)=>{ o.s.vals.forEach((v,i)=>{
+    const x0=X(i)-(bars.length*bw)/2+bi*bw, y=Y(Math.max(v,0),o.j), h=Math.abs(Y(v,o.j)-Y(0,o.j));
+    g+=`<rect x="${x0.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-1.5).toFixed(1)}" height="${Math.max(1,h).toFixed(1)}" fill="${o.s.color}" rx="2"/>`; }); });
+  S.forEach((s,j)=>{ if(s.type!=="line") return;
+    g+=`<polyline fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${s.vals.map((v,i)=>X(i).toFixed(1)+","+Y(v,j).toFixed(1)).join(" ")}"/>`;
+    s.vals.forEach((v,i)=>{ g+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v,j).toFixed(1)}" r="2.8" fill="${s.color}"/>`; }); });
+  /* hover zone per month: one tooltip listing both items */
+  ks.forEach((k,i)=>{
+    const zx=X(i)-slot/2;
+    const rows=S.map((s,j)=>`<div class='r'><i style='background:${s.color}'></i><span class='n'>${esc(s.name)} (${j?"right":"left"})</span><span class='v'>${fmt(s.vals[i])}</span></div>`).join("");
+    g+=`<rect x="${zx.toFixed(1)}" y="${PT}" width="${slot.toFixed(1)}" height="${ih}" fill="transparent" style="cursor:crosshair" data-tip="&lt;div class='t'&gt;${esc(mLabel(k))}&lt;/div&gt;${rows}"/>`;
+  });
+  const leg=S.map((s,j)=>`<span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${s.color};vertical-align:middle"></i> ${esc(s.name)} <span style="opacity:.7">(${j?"right":"left"} axis, RM)</span></span>`).join(" &nbsp; ");
+  return `<div style="overflow-x:auto"><div class="note" style="margin:0 0 6px">${leg}</div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="xMidYMid meet" role="img">${g}</svg></div>`;
+}
+
+/* ---------- backup reminder ---------- */
+function bkRender(){
+  const b=$("#bkBanner"); if(!b) return;
+  if(!Object.keys(MONTHS).length){ b.style.display="none"; return; }
+  const days=CFG.lastBackup? Math.floor((Date.now()-CFG.lastBackup)/864e5) : null;
+  if(days!==null && days<=30){ b.style.display="none"; return; }
+  b.innerHTML='⚠️ <span>'+(days===null?'You have <b>never backed up</b> this data.':'Last backup was <b>'+days+' days ago</b>.')+' It only lives in this browser — clearing browser data would erase it.</span><span class="spacer"></span><button class="b sm" onclick="exportJSON()">⬇ Back up now</button>';
+  b.style.display="flex";
+}
+/* ---------- year-on-year, yield, collection ---------- */
+function renderYoY(){
+  const box=$("#chYoY"); if(!box) return;
+  const cur=CUR, prev=addMonth(cur,-12), y=cur.slice(0,4), py=String(+y-1), mo=+cur.slice(5);
+  const ytd=yr=>{const a={income:0,owner:0,net:0}; for(let i=1;i<=mo;i++){const c=calc(yr+"-"+String(i).padStart(2,"0")); a.income+=c.income;a.owner+=c.owner;a.net+=c.net;} return a;};
+  const A=calc(cur), B=calc(prev), YA=ytd(y), YB=ytd(py);
+  const cell=(x,z,costs)=>{ if(!z) return '<td class="num">—</td>'; const p=(x-z)/Math.abs(z)*100, good=costs?p<=0:p>=0;
+    return `<td class="num" style="color:${good?"var(--ok)":"var(--bad)"}">${p>0?"+":""}${p.toFixed(1)}%</td>`; };
+  const row=(l,x,z,costs)=>`<tr><td>${l}</td><td class="num">${rm(x)}</td><td class="num">${rm(z)}</td>${cell(x,z,costs)}</tr>`;
+  const tbl=(t,a,b)=>`<div style="flex:1;min-width:290px"><div class="note" style="font-weight:600;margin:0 0 4px">${esc(t)}</div><table><thead><tr><th></th><th class="num">This year</th><th class="num">Last year</th><th class="num">Change</th></tr></thead><tbody>${row("Income",a.income,b.income)}${row("Owner costs",a.owner,b.owner,true)}${row("Net profit",a.net,b.net)}</tbody></table></div>`;
+  let inc=0,net=0,due=0,got=0;
+  for(let i=0;i<12;i++){ const m=addMonth(cur,-i), c=calc(m); inc+=c.income; net+=c.net;
+    const r=MONTHS[m]; if(r) TEN.filter(t=>leaseFullMonth(t,m)).forEach(t=>{ const d=+t.monthly||0; due+=d; got+=Math.min(d,+((r.rent[t.id]||{}).amt)||0); }); }
+  const v=+CFG.value||0, kp=(l,x,n)=>`<div style="min-width:150px"><div class="note" style="margin:0">${l}</div><div style="font-size:18px;font-weight:700">${x}</div>${n?`<div class="note" style="margin:0">${n}</div>`:""}</div>`;
+  const kpis=[
+    kp("Gross yield (12 mo)", v?(inc/v*100).toFixed(2)+"%":"—", v?"":"set Property value in Setup"),
+    kp("Net yield (12 mo)", v?(net/v*100).toFixed(2)+"%":"—", v?"":"set Property value in Setup"),
+    kp("Rent collected vs agreed (12 mo)", due?(got/due*100).toFixed(1)+"%":"—", due?rm(got)+" of "+rm(due):""),
+    kp("Net profit (12 mo)", rm(net), "to "+mLabel(cur))
+  ].join("");
+  box.innerHTML=`<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px">${kpis}</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap">${tbl(mLabel(cur)+" vs "+mLabel(prev),A,B)}${tbl("Year to date (Jan–"+mLabel(cur).split(" ")[0]+")",YA,YB)}</div>`;
 }
 /* ---------- composition ----------
    Two questions the old "Cumulative" card was not answering: WHERE does the money come from,
@@ -2666,79 +2862,88 @@ function renderComposition(ks,C,money){
   const ml=$("#chMixMonthLbl"), yl=$("#chMixYearLbl");
   if(ml) ml.hidden=yearly; if(mm) mm.hidden=yearly;
   if(yl) yl.hidden=!yearly; if(yv) yv.hidden=!yearly;
-  // seed the year from the range so it is never blank
-  if(yearly && yv){
-    if(!yv.value) yv.value=(ks[ks.length-1]||CUR).slice(0,4);
-  }
+  if(yearly && yv && !yv.value) yv.value=(ks[ks.length-1]||CUR).slice(0,4);
+
   const wantMonths = one
     ? (yearly ? ks.filter(k=>k.slice(0,4)===String(yv&&yv.value)) : [ (mm&&mm.value) || ks[ks.length-1] ])
     : ks;
-  /* An empty pick must say so, never silently widen to the whole range (which would show
-     unrelated figures under the year the user asked for). */
   const empty = one && wantMonths.length===0;
   const months = empty ? [] : wantMonths;
   const lbl = one
     ? (yearly ? String(yv&&yv.value||"") : mLabel((mm&&mm.value)||ks[ks.length-1]))
-    : "whole range";
+    : "whole selected range";
   const noData = `<div class="note">No records for <b>${esc(lbl)}</b> in this range.</div>`;
-  if(empty){ $("#chDonut").innerHTML=`<div class="note" style="font-weight:600;margin:0 0 6px">Income mix — ${esc(lbl)}</div>`+noData;
-             $("#chExpense").innerHTML=`<div class="note" style="font-weight:600;margin:16px 0 6px">Expense mix — ${esc(lbl)}</div>`+noData; }
+  if(empty){
+    $("#chDonut").innerHTML=`<div class="note" style="font-weight:600;margin:0 0 6px">Income sources — ${esc(lbl)}</div>`+noData;
+    $("#chAllocation").innerHTML=`<div class="note" style="font-weight:600;margin:16px 0 6px">Income allocation — ${esc(lbl)}</div>`+noData;
+    $("#chExpense").innerHTML=`<div class="note" style="font-weight:600;margin:16px 0 6px">Expenses by category — ${esc(lbl)}</div>`+noData;
+    $("#chBearer").innerHTML=''; $("#chStack").innerHTML=''; return;
+  }
 
-  // --- income composition: rent / parking / other charges ---
-  const inc=[];
-  let iRent=0,iPark=0,iExtra=0;
+  // Income sources: aggregate rent, parking and other charges for the selected period.
+  const inc=[]; let iRent=0,iPark=0,iExtra=0;
   months.forEach(m=>{const c=calc(m); iRent+=c.rent; iPark+=c.park; iExtra+=c.extra;});
-  if(iRent>0)  inc.push({name:"Rent",value:iRent,color:PAL_RENT});
-  if(iPark>0)  inc.push({name:"Parking",value:iPark,color:PAL_PARK});
-  if(iExtra>0) inc.push({name:"Other charges",value:iExtra,color:PAL_EXTRA});
-  $("#chDonut").innerHTML=`<div class="note" style="margin:0 0 6px;font-weight:600">Income mix — ${lbl}</div>`+svgDonut(inc,money);
+  // Always list all three income sources, including zero-value categories, so the
+  // composition table stays consistent and makes missing income sources visible.
+  inc.push({name:"Rental income",value:Math.max(0,iRent),color:PAL_RENT});
+  inc.push({name:"Parking income",value:Math.max(0,iPark),color:PAL_PARK});
+  inc.push({name:"Other charges",value:Math.max(0,iExtra),color:PAL_EXTRA});
+  $("#chDonut").innerHTML=`<div class="note" style="margin:0 0 6px;font-weight:600">Income sources — ${esc(lbl)}</div>`+svgDonut(inc,money)
+    + `<div class="note" style="margin-top:6px">The circle represents 100% of recorded income. Categories with RM0 are listed in the table but have no visible slice; enter parking or other-charge income to give them a share of the circle.</div>`;
 
-  // --- expense composition, owner-borne and tenant-borne kept apart ---
-  /* One entry per CATEGORY, not per month-per-category. When the view covers a year (or the
-     whole range) the same category recurs every month, so pushing per month would list
-     "Mortgage" a dozen times. Aggregate by category name and keep the first colour. */
+  // Show how income is used: owner costs and retained profit. When costs exceed income,
+  // the slices show owner costs versus the shortfall, so the chart still totals 100%.
+  let allocIncome=0, allocOwner=0;
+  months.forEach(m=>{const c=calc(m); allocIncome+=c.income; allocOwner+=c.owner;});
+  const alloc=[];
+  if(allocIncome>0){
+    if(allocOwner<=allocIncome){
+      if(allocOwner>0) alloc.push({name:"Owner-borne costs",value:allocOwner,color:"#ef4444"});
+      if(allocIncome-allocOwner>0) alloc.push({name:"Net profit retained",value:allocIncome-allocOwner,color:"#22c55e"});
+    }else{
+      alloc.push({name:"Income",value:allocIncome,color:"#22c55e"});
+      alloc.push({name:"Costs above income",value:allocOwner-allocIncome,color:"#ef4444"});
+    }
+  }
+  const allocTitle=allocOwner>allocIncome ? "Owner costs exceed income" : "Income allocation";
+  $("#chAllocation").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">${allocTitle} — ${esc(lbl)}</div>`
+    + (alloc.length ? svgDonut(alloc,money) : '<div class="note">No income recorded for this period.</div>')
+    + '<div class="note" style="margin-top:6px">This chart separates owner-borne costs from profit retained. Tenant-borne expenses are excluded from this calculation.</div>';
+
+  // Expense categories: each category appears once, aggregated across the selected period.
   const byName={}, order=[];
   months.forEach(m=>{
     const r=MONTHS[m]||blank();
     CFG.cats.forEach((c,i)=>{
-      const v=+r.exp[c.id]||0; if(!v) return;
-      if(!byName[c.name]){ byName[c.name]={name:c.name,value:0,color:mixCatColor(i),bearer:c.bearer==="tenant"}; order.push(c.name); }
-      byName[c.name].value+=v;
+      const v=+r.exp[c.id]||0; if(v<=0) return;
+      if(!byName[c.id]){byName[c.id]={name:c.name,value:0,color:mixCatColor(i),bearer:c.bearer==="tenant"};order.push(c.id);}
+      byName[c.id].value+=v;
     });
   });
-  const eOwn=[], eTen=[];
-  order.forEach(n=>{ const x=byName[n]; (x.bearer?eTen:eOwn).push(x); });
-  const sum=a=>a.reduce((s,x)=>s+x.value,0);
-  const eOwnT=sum(eOwn), eTenT=sum(eTen), eTot=eOwnT+eTenT;
-  const legend=(arr,total)=>arr.slice().sort((a,b)=>b.value-a.value)
-    .map(x=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:2px 0">
-        <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${x.color};margin-right:6px"></span>${esc(x.name)}</span>
-        <span class="num">${money(x.value)} <span class="note">${total?(x.value/total*100).toFixed(1):"0.0"}%</span></span></div>`).join("");
-  $("#chExpense").innerHTML=
-      `<div class="note" style="margin:16px 0 6px;font-weight:600">Expense mix — ${lbl}</div>`
-    + (eTot ? svgDonut([...(eOwnT?[{name:"Owner-borne",value:eOwnT,color:"#ef4444"}]:[]),
-                        ...(eTenT?[{name:"Tenant-borne",value:eTenT,color:"#0ea5e9"}]:[])],money)
-    + `<div style="display:flex;gap:22px;flex-wrap:wrap;margin-top:10px">
-         <div style="min-width:250px;flex:1"><div class="note" style="font-weight:600;margin-bottom:2px">Owner-borne ${money(eOwnT)}</div>${legend(eOwn,eOwnT)||'<div class="note">—</div>'}</div>
-         <div style="min-width:250px;flex:1"><div class="note" style="font-weight:600;margin-bottom:2px">Tenant-borne ${money(eTenT)}</div>${legend(eTen,eTenT)||'<div class="note">—</div>'}</div>
-       </div>`
-      : '<div class="note">No expenses recorded.</div>');
+  const expenses=order.map(id=>byName[id]).sort((a,b)=>b.value-a.value);
+  const expenseTotal=expenses.reduce((sum,x)=>sum+x.value,0);
+  const expenseDonut=expenses.map(x=>({name:x.name,value:x.value,color:x.color}));
+  $("#chExpense").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">Expenses by category — ${esc(lbl)} · Total ${money(expenseTotal)}</div>`
+    + (expenseTotal ? svgDonut(expenseDonut,money) : '<div class="note">No expenses recorded for this period.</div>')
+    + (expenseTotal ? `<div class="note" style="margin-top:6px">Expense categories include both owner-borne and tenant-borne amounts; check Setup for each category’s assigned responsibility.</div>` : '');
 
-  /* --- the two bar charts roll up the same way the donuts do, so a yearly view is
-     genuinely yearly rather than monthly bars with a yearly heading. --- */
+  // In a single-year view, aggregate to that year. In whole-range mode, retain monthly detail.
   const unit = one ? (yearly ? "year" : "month") : "month";
   const gks = unit==="year" ? rollUp(ks,"year").keys : ks;
-  const GC   = unit==="year" ? rollUp(ks,"year").rows : C;
-  const unitLbl = unit==="year" ? "year" : "month";
-  const noun = unit==="year" ? "each year" : "each month";
-  const yrLabel = k=> unit==="year" ? String(k) : mLabel(k);
-  $("#chBearer").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">Who bears the cost — ${one?noun:"whole range (by month)"}</div>`
-    + svgChart(gks,[{name:"Owner-borne",color:"#ef4444",vals:GC.map(c=>c.owner)},
-                  {name:"Tenant-borne",color:"#0ea5e9",vals:GC.map(c=>c.tenantExp)}],money,{h:170,type:"bar",label:yrLabel});
-
-  $("#chStack").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">Income vs expenses by ${unitLbl} — ${one?"selected "+(unit==="year"?"year":"month"):"whole range"}</div>`
-    + svgChart(gks,[{name:"Income",color:"#22c55e",vals:GC.map(c=>c.income)},
-                  {name:"Owner costs",color:"#ef4444",vals:GC.map(c=>c.owner)}],money,{h:200,type:"bar",label:yrLabel});
+  const GC = unit==="year" ? rollUp(ks,"year").rows : C;
+  const yrLabel = k=>unit==="year" ? String(k) : mLabel(k);
+  const period = one ? (yearly?"selected year":"selected month") : "whole range, by month";
+  $("#chBearer").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">Who pays the recorded expenses — ${period}</div>`
+    + svgChart(gks,[
+      {name:"Owner-borne costs",color:"#ef4444",vals:GC.map(c=>c.owner)},
+      {name:"Tenant-borne costs",color:"#0ea5e9",vals:GC.map(c=>c.tenantExp)}
+    ],money,{h:180,type:"bar",label:yrLabel});
+  $("#chStack").innerHTML=`<div class="note" style="margin:18px 0 6px;font-weight:600">Income, owner costs &amp; net profit — ${period}</div>`
+    + svgChart(gks,[
+      {name:"Total income",color:"#22c55e",vals:GC.map(c=>c.income)},
+      {name:"Owner-borne costs",color:"#ef4444",vals:GC.map(c=>c.owner)},
+      {name:"Net profit before tenant-borne costs",color:"#8b5cf6",vals:GC.map(c=>c.net)}
+    ],money,{h:210,type:"bar",label:yrLabel});
 }
 const PAL_RENT="#22c55e", PAL_PARK="#0ea5e9", PAL_EXTRA="#a855f7";
 /* ---------- history / export ---------- */
@@ -2937,7 +3142,7 @@ function leaseStatusText(t,m){
   const s=t.start?t.start.slice(0,7):"0000-00", e=t.end?t.end.slice(0,7):"9999-99", mm=m||CUR;
   if(mm<s) return "upcoming"; if(mm>e) return "ended"; return "active";
 }
-function exportJSON(){ dl(JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD},null,2),"rental-tracker-backup.json","application/json"); save(); }
+function exportJSON(){ CFG.lastBackup=Date.now(); dl(JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,RC_NUMBERS,RC_SEQ,TAX:CFG_TAX},null,2),"rental-tracker-backup.json","application/json"); save(); bkRender(); }
 function dl(txt,name,type){
   const b=new Blob(["\uFEFF"+txt],{type}); const u=URL.createObjectURL(b);
   const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
@@ -2946,9 +3151,19 @@ function importJSON(e){
   const f=e.target.files[0]; if(!f)return;
   const rd=new FileReader();
   rd.onload=()=>{ try{ const d=JSON.parse(rd.result);
-      CFG=Object.assign(CFG,d.CFG||{}); TEN=d.TEN||TEN; MONTHS=d.MONTHS||MONTHS; CUR=d.CUR||CUR;
-      RC_HDR=d.RC_HDR||{}; RC_OWN=d.RC_OWN||{}; RC_PERIOD=d.RC_PERIOD||{};
-      boot(true); save(); alert("Restored."); }catch(err){alert("Could not read that file: "+err.message);} };
+      if(!d || typeof d!=="object" || !d.CFG || !Array.isArray(d.TEN) || !d.MONTHS || typeof d.MONTHS!=="object") throw new Error("This does not look like a valid Rental Tracker backup (CFG, TEN and MONTHS are required).");
+      const badTen=d.TEN.filter(t=>!t||typeof t!=="object"||!t.id||!String(t.name||"").trim());
+      if(badTen.length) throw new Error(`${badTen.length} tenant record(s) are missing an ID or name. Nothing was changed.`);
+      const summary=`Backup preview:
+• ${d.TEN.length} tenant/parking records
+• ${Object.keys(d.MONTHS).length} month records
+• ${Object.keys(d.RC_NUMBERS||{}).length} numbered receipts
+
+Import replaces the current tracker data. Export a backup first if you need to keep the current data. Continue?`;
+      if(!confirm(summary)) return;
+      CFG=Object.assign(CFG,d.CFG); TEN=d.TEN; MONTHS=d.MONTHS; CUR=d.CUR||CUR;
+      RC_HDR=d.RC_HDR||{}; RC_OWN=d.RC_OWN||{}; RC_PERIOD=d.RC_PERIOD||{}; RC_NUMBERS=d.RC_NUMBERS||{}; RC_SEQ=Number.isInteger(d.RC_SEQ)&&d.RC_SEQ>0?d.RC_SEQ:(Math.max(0,...Object.values(RC_NUMBERS).map(n=>parseInt(String(n).split("-").pop(),10)||0))+1); if(d.TAX) CFG_TAX=Object.assign(CFG_TAX,d.TAX);
+      boot(true); save(); alert("Restore completed."); }catch(err){alert("Import cancelled: "+err.message);} finally { e.target.value=""; } };
   rd.readAsText(f);
 }
 function loadDemo(){
@@ -2967,16 +3182,16 @@ function loadDemo(){
           exp:{mortgage:1850,electric:395,water:52,iwk:15,internet:120,quit:450},meta:{tnb_prev:1120,tnb_cur:1395},notes:"Quit rent paid"},
           "2026-10":{rent:{t2:{amt:700,method:"DuitNow",date:"2026-10-02",note:"FPX ref 8812"},t4:{amt:400,method:"Bank transfer",date:"2026-10-06",note:"part payment"},p1:{amt:150}},
           exp:{mortgage:1850,electric:288,water:48,iwk:15,internet:120,repairs:60},meta:{tnb_prev:1395,tnb_cur:1560},notes:"Aiman & Wei Ling moved out — do not expect their rent"}};
-  CUR="2026-10"; DEPSEL="t2"; boot(true); save();
+  CUR="2026-10"; DEPSEL="t2"; RC_NUMBERS={}; RC_SEQ=1; boot(true); save();
 }
-function wipe(){ if(confirm("Erase ALL data permanently?")){ localStorage.removeItem(KEY); CFG.cats=CFG.cats.filter(c=>c.id!=="mortgage"&&c.id!=="maintenance"); TEN=[]; MONTHS={}; DEPSEL=null; boot(true); } }
+function wipe(){ if((prompt("This permanently deletes ALL data. Download a backup first!\nType ERASE to confirm.")||"").trim()==="ERASE"){ localStorage.removeItem(KEY); CFG.cats=CFG.cats.filter(c=>c.id!=="mortgage"&&c.id!=="maintenance"); TEN=[]; MONTHS={}; DEPSEL=null; boot(true); } }
 
 /* ---------- setup ---------- */
 function renderSetup(){
   $("#cfgAddr").value=CFG.address||""; $("#cfgType").value=CFG.type||"Terrace / landed";
   $("#cfgMtg").value=CFG.mortgage||""; $("#cfgMaint").value=CFG.maintenance||"";
   $("#cfgMtgEnd").value=CFG.mortgage_end||""; $("#cfgOwner").value=CFG.owner||"";
-  $("#cfgParking").value=CFG.parking||"";
+  $("#cfgParking").value=CFG.parking||""; if($("#cfgValue")) $("#cfgValue").value=CFG.value||"";
   /* These two are filled here rather than inline: the card is static HTML, so a ${} in the
      markup is just literal text and the field would boot blank. */
   const rw=$("#cfgRenew"); if(rw) rw.value=+CFG.renew_months||2;
@@ -3067,7 +3282,8 @@ function boot(skipLoad){
   renderTenants(); renderSetup(); loadMonth(); renderDash(); renderHistory(); renderDeposits(); renderCharts(); taxRender();
   renderRail();
   syncMonthViews();
-  save();
+  save(); bkRender();
+  try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
 }
 boot();
 window.addEventListener("beforeunload",save);
