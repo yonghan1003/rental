@@ -135,28 +135,74 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 }
 /* ---- report: A4 print layout. A standalone window carries its own @page rule; these rules make
    the on-screen preview match it closely enough to trust what will come out. ---- */
+#s-report .rp-controls{display:grid;grid-template-columns:minmax(170px,1fr) minmax(170px,1fr) auto;gap:12px;align-items:end}
+#s-report .rp-field{min-width:0}
+#s-report .rp-field input,#s-report .rp-field select{width:100%;min-width:0}
+#s-report .rp-print{min-height:38px;white-space:nowrap}
+@media(max-width:680px){#s-report .rp-controls{grid-template-columns:1fr 1fr}#s-report .rp-controls .rp-field:first-child{grid-column:1/-1}#s-report .rp-print{grid-column:1/-1;width:100%}}
+@media print{#s-report .rp-controls{display:none}}
 #rpPaper .paper{max-width:100%;padding:26px}
-#rpPaper h2.rp-h{font-size:19px;margin:0 0 2px}
-#rpPaper .rp-sub{color:#555;font-size:12px;margin-bottom:14px}
-#rpPaper .rp-sec{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#444;border-bottom:1px solid #bbb;padding-bottom:3px}
-/* fixed layout: the 9-column year table is far wider than A4, and with auto layout the long
-   "RM 1,250.00" cells push it to ~1570px. Fixed layout scales columns to the page instead. */
-#rpPaper table.rp{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:4px;table-layout:fixed}
-#rpPaper table.rp th{overflow-wrap:break-word}
-#rpPaper table.rp td{overflow-wrap:break-word}
-#rpPaper table.rp td.n{white-space:nowrap;font-size:10.5px}
-#rpPaper table.rp th{background:#f0f0f0;color:#333;font-size:10px;text-transform:uppercase;letter-spacing:.4px;padding:5px 6px;border:1px solid #bbb;text-align:left}
-#rpPaper table.rp td{padding:4px 6px;border:1px solid #ddd;color:#111}
+#rpPaper h2.rp-h{font-size:20px;line-height:1.3;margin:0 0 4px;color:#111}
+#rpPaper .rp-sub{color:#555;font-size:12px;margin-bottom:14px;overflow-wrap:anywhere}
+#rpPaper .rp-sec{margin:16px 0 7px;font-size:12px;text-transform:uppercase;letter-spacing:.6px;color:#444;border-bottom:1px solid #bbb;padding-bottom:4px;break-after:avoid}
+/* Keep report tables on a common grid: predictable columns, right-aligned figures and no
+   accidental overflow from long tenant/category names. */
+#rpPaper table.rp{width:100%;border-collapse:collapse;font-size:11.5px;margin:0 0 8px;table-layout:fixed}
+#rpPaper table.rp th,#rpPaper table.rp td{overflow-wrap:break-word;word-break:normal;vertical-align:top}
+#rpPaper table.rp td.n{white-space:nowrap;font-size:10.5px;overflow-wrap:normal;word-break:normal}
+#rpPaper table.rp tfoot td:first-child{white-space:nowrap;word-break:normal;overflow-wrap:normal}
+#rpPaper .rp-status{display:inline-block;padding:2px 5px;border-radius:4px;font-size:9.5px;font-weight:700;white-space:nowrap;background:#eee;color:#444}
+#rpPaper .rp-status.paid{background:#dcfce7;color:#166534}
+#rpPaper .rp-status.partial{background:#fef3c7;color:#92400e}
+#rpPaper .rp-status.outstanding{background:#fee2e2;color:#991b1b}
+#rpPaper .rp-status.overpaid{background:#dbeafe;color:#1d4ed8}
+#rpPaper table.rp th{background:#f0f0f0;color:#333;font-size:10px;text-transform:uppercase;letter-spacing:.35px;padding:6px;border:1px solid #bbb;text-align:left}
+#rpPaper table.rp td{padding:5px 6px;border:1px solid #ddd;color:#111}
+/* Result summary: force the amount column to the far-right edge of the full report width. */
+#rpPaper table.rp.rp-result{width:100% !important;min-width:100% !important;table-layout:fixed !important;border-collapse:collapse}
+#rpPaper table.rp.rp-result col:first-child{width:85% !important}
+#rpPaper table.rp.rp-result col:last-child{width:15% !important}
+#rpPaper table.rp.rp-result tr > td:first-child{width:85% !important;text-align:left}
+#rpPaper table.rp.rp-result tr > td:last-child{width:15% !important;text-align:right !important;white-space:nowrap;padding-right:6px !important;font-variant-numeric:tabular-nums}
+/* Keep every result amount on exactly the same right edge, including the bold Net profit row. */
+#rpPaper table.rp.rp-result tbody tr > td:last-child,
+#rpPaper table.rp.rp-result tbody tr.tot > td:last-child{
+  box-sizing:border-box !important;
+  text-align:right !important;
+  padding-left:6px !important;
+  padding-right:6px !important;
+  white-space:nowrap !important;
+  font-variant-numeric:tabular-nums !important;
+}
+/* The Net profit row must remain a normal table row; prevent global .tot styles
+   from shrinking it independently of the following result rows. */
+#rpPaper table.rp.rp-result > tbody{display:table-row-group !important;width:100% !important}
+#rpPaper table.rp.rp-result > tbody > tr,
+#rpPaper table.rp.rp-result > tbody > tr.tot{display:table-row !important;width:100% !important}
+#rpPaper table.rp.rp-result > tbody > tr > td,
+#rpPaper table.rp.rp-result > tbody > tr.tot > td{display:table-cell !important}
+#rpPaper table.rp.rp-result > tbody > tr > td:first-child{width:85% !important}
+#rpPaper table.rp.rp-result > tbody > tr > td:last-child{width:15% !important}
 #rpPaper table.rp td.n,#rpPaper table.rp th.n{text-align:right;font-variant-numeric:tabular-nums}
+#rpPaper table.rp tfoot{display:table-row-group}
+#rpPaper table.rp tfoot tr{display:table-row}
+#rpPaper table.rp tfoot td{display:table-cell;white-space:nowrap}
+/* Two-column summary tables use the full width instead of shrinking the amount cell. */
+#rpPaper table.rp:not(:has(th:nth-child(3))){table-layout:fixed}
+#rpPaper table.rp:not(:has(th:nth-child(3))) tr > :first-child{width:72%}
+#rpPaper table.rp:not(:has(th:nth-child(3))) tr > :last-child{width:28%;text-align:right}
+#rpPaper table.rp:has(th:nth-child(8)) th:first-child,#rpPaper table.rp:has(th:nth-child(8)) td:first-child{width:32%}
 #rpPaper table.rp tr.tot td{font-weight:700;background:#f7f7f7;border-top:2px solid #999}
 #rpPaper table.rp tr.grp td{background:#ececec;font-weight:700;font-size:11px;text-transform:uppercase;color:#333}
-#rpPaper .rp-kv{display:flex;flex-wrap:wrap;gap:6px 22px;margin-bottom:8px}
-#rpPaper .rp-kv div{font-size:12px}
-#rpPaper .rp-kv b{color:#000}
+#rpPaper .rp-kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0 12px}
+#rpPaper .rp-kv div{font-size:11.5px;min-width:0;padding:8px 10px;background:#f4f4f4;border:1px solid #ddd;border-radius:5px;overflow-wrap:anywhere}
+#rpPaper .rp-kv b{display:block;color:#555;font-size:10px;text-transform:uppercase;letter-spacing:.35px;margin-bottom:2px}
 #rpPaper .rp-neg{color:#b91c1c;font-weight:700}
 #rpPaper .rp-pos{color:#15803d;font-weight:700}
 #rpPaper .rp-note{font-size:11px;color:#555;font-style:italic;white-space:pre-wrap}
-#rpPaper .rp-foot{margin-top:18px;padding-top:8px;border-top:1px solid #bbb;font-size:10px;color:#666;display:flex;justify-content:space-between}
+#rpPaper .rp-year-meta{font-size:11px;color:#444;background:#f7f7f7;border-left:3px solid #aaa;padding:8px 10px;margin-top:10px;line-height:1.6}
+#rpPaper .rp-foot{margin-top:18px;padding-top:8px;border-top:1px solid #bbb;font-size:10px;color:#666;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media screen and (max-width:760px){#rpPaper .paper{padding:14px}#rpPaper .rp-kv{grid-template-columns:repeat(2,minmax(0,1fr))}#rpPaper table.rp{font-size:10.5px}#rpPaper table.rp th{font-size:9px;padding:4px 3px}#rpPaper table.rp td{padding:4px 3px}#rpPaper table.rp td.n{font-size:9.5px}}
 @media print{
   #rpPaper .paper{padding:0;max-width:100%;margin:0}
   #rpPaper table.rp{break-inside:auto;font-size:9.5px}
@@ -192,24 +238,24 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .rw-mini>div{flex:1;background:var(--panel2);border-radius:8px;padding:6px 7px;text-align:center}
 .rw-mini .v{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
 .rw-mini .k{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
-/* ---- optional second rail column. At 1200-1499px there is no room beside a 320px rail
-   (the leftover would be under ~380px), so it only appears from 1500px where the spare width is
-   genuinely usable. Hidden below that, and in print. ---- */
+/* ---- Balanced three-column desktop layout. Keep the two widget rails the same width so
+   the cards feel evenly distributed; the main workspace receives the remaining width. The
+   second rail is only shown when there is enough room for all three columns. ---- */
 .rail2{display:none}
-@media (min-width:1560px){
+@media (min-width:1500px){
+  .rail{flex:0 0 290px;width:290px;min-width:290px}
   .rail2{
     display:block;position:sticky;top:74px;
-    /* flex-basis rather than a fixed width: the column takes 340px when there is room and
-       shrinks on narrower desktops, so the leftover beside the main content is never wasted. */
-    flex:0 1 340px;width:340px;min-width:250px;
+    flex:0 0 290px;width:290px;min-width:290px;
     max-height:calc(100vh - 90px);overflow-y:auto;overscroll-behavior:contain;
   }
   .rail2::-webkit-scrollbar{width:6px}
   .rail2::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
   .rail2 .card{padding:13px;margin-bottom:12px}
   .rail2 .card h2{font-size:12px;margin:0 0 10px}
+  main{max-width:none;flex:1 1 0;min-width:0}
 }
-@media (max-width:1559px){ .rail2{display:none!important} }
+@media (max-width:1499px){ .rail2{display:none!important} }
 @media print{ .rail2{display:none!important} }
 @media (max-width:1200px){
   /* fold the second column's cards into the single stacked rail */
@@ -333,17 +379,6 @@ tr[data-state="ended"] .pill{filter:none}
     <div class="scroll"><table><thead><tr><th>Category</th><th class="num">Amount (RM)</th><th class="num">% of income</th><th style="width:32%">Share</th></tr></thead><tbody id="expBody"></tbody></table></div>
   </div>
 
-  <div class="card">
-    <h2>Per-tenant position</h2>
-    <div class="scroll"><table><thead><tr><th>Tenant</th><th class="num">Agreed rent</th><th class="num">Received</th><th class="num">Balance</th><th>Status</th></tr></thead><tbody id="tenBody"></tbody>
-    <tfoot><tr><td id="tenTotLbl">Total</td><td class="num" id="tenTotAg"></td><td class="num" id="tenTotA"></td><td class="num" id="tenTotB"></td><td></td></tr></tfoot>
-    </table></div>
-  </div>
-
-  <div class="card">
-    <h2>Owner outgoings (you pay these)</h2>
-    <div class="scroll"><table><thead><tr><th>Item</th><th class="num">This month</th><th>Who pays it</th></tr></thead><tbody id="ownBody"></tbody></table></div>
-  </div>
 </section>
 
 <!-- ============ MONTHLY UPDATE ============ -->
@@ -365,8 +400,14 @@ tr[data-state="ended"] .pill{filter:none}
   </div>
 
   <div class="card">
+    <h2>Rent collection overview</h2>
+    <div class="kpis" id="rentKpis"></div>
+    <div class="note" id="rentCollectionNote" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
     <h2>Rent collected per tenant</h2>
-    <div class="scroll"><table class="tight"><thead><tr><th>Tenant / Parking</th><th class="num">Agreed</th><th class="num">Paid</th><th class="num">Received</th><th class="num">Balance</th><th>Method</th><th>Paid on</th><th>Note</th></tr></thead>
+    <div class="scroll"><table class="tight"><thead><tr><th>Tenant / Parking</th><th class="num">Agreed</th><th class="num">Paid</th><th class="num">Received</th><th class="num">Balance due</th><th>Collection status</th><th>Method</th><th>Paid on</th><th>Note</th></tr></thead>
     <tbody id="rentBody"></tbody>
     <tfoot><tr><td>Total rent &amp; parking</td><td class="num" id="rentAgreedT"></td><td class="num"></td><td class="num" id="rentRecvT"></td><td class="num" id="rentBalT"></td><td colspan="4"></td></tr></tfoot>
     </table></div>
@@ -423,10 +464,8 @@ tr[data-state="ended"] .pill{filter:none}
       <span class="tnt-count" id="tntCount"></span>
       <input id="tenantSearch" type="search" placeholder="Search name or phone…" aria-label="Search tenants by name or phone" oninput="renderTenants()" style="max-width:240px">
       <select id="tenantTypeFilter" aria-label="Filter tenant type" onchange="renderTenants()" style="max-width:150px"><option value="">All types</option><option value="Tenant">Tenants</option><option value="Parking">Parking</option></select>
-      <select id="tenantStatusFilter" aria-label="Filter lease status" onchange="renderTenants()" style="max-width:160px"><option value="">All lease statuses</option><option value="active">Active</option><option value="upcoming">Upcoming</option><option value="ended">Ended</option></select>
+      <select id="tenantStatusFilter" aria-label="Filter lease status" onchange="this.dataset.userChanged='1';renderTenants()" style="max-width:160px"><option value="active" selected>Active</option><option value="upcoming">Upcoming</option><option value="ended">Ended</option><option value="">All lease statuses</option></select>
       <span class="spacer"></span>
-      <label class="ar-toggle"><input type="checkbox" id="tntShowEnded" onchange="renderTenants()"> Show ended tenants</label>
-      <span class="note" id="tntHideNote"></span>
     </div>
     <div class="scroll"><table class="tight"><thead><tr><th>Name</th><th>Phone</th><th>Type</th><th class="num">Monthly (RM)</th><th>Lease start</th><th>Lease end</th><th>Status</th><th class="noprint"></th></tr></thead>
     <tbody id="tntBody"></tbody>
@@ -446,6 +485,11 @@ tr[data-state="ended"] .pill{filter:none}
 <section id="s-deposit">
   <div class="card">
     <h2>Tenant deposits — what you must return</h2>
+    <div class="tnt-bar" style="margin-bottom:12px">
+      <input id="depositSearch" type="search" placeholder="Search tenant name or phone…" aria-label="Search deposits by tenant name or phone" oninput="renderDeposits()" style="max-width:260px">
+      <select id="depositStatusFilter" aria-label="Filter deposit lease status" onchange="renderDeposits()" style="max-width:180px"><option value="active" selected>Active</option><option value="upcoming">Upcoming</option><option value="ended">Ended</option><option value="">All lease statuses</option></select>
+      <span class="note" id="depositFilterCount"></span>
+    </div>
     <div class="scroll"><table><thead><tr><th>Tenant</th><th>Type</th><th>Lease status</th><th class="num">Deposit held</th><th class="num">Deductions</th><th class="num">Refunded</th><th class="num">Balance to return</th><th class="noprint"></th></tr></thead>
     <tbody id="depBody"></tbody>
     <tfoot><tr><td colspan="3">Total</td><td class="num" id="depHeldT"></td><td class="num" id="depDedT"></td><td class="num" id="depRefT"></td><td class="num" id="depBalT"></td><td class="noprint"></td></tr></tfoot>
@@ -476,11 +520,10 @@ tr[data-state="ended"] .pill{filter:none}
       <div><label>Method</label><select id="rcMethod" onchange="renderReceipt()"></select></div>
     </div>
     <div class="row-actions" style="margin-top:12px">
-      <button class="b" onclick="exportReceiptPDF()">📄 Save as PDF</button>
-      <button class="b sec sm" onclick="printReceipt()">🖨 Print</button>
+      <button class="b" onclick="printReceipt()">🖨 Print / Save as PDF</button>
       <button class="b sec sm" onclick="resetRcHdr()">↺ Reset header text</button>
     </div>
-    <div class="note">Amount is pulled from the Monthly Update tab for that month. Override it only for an advance or part-payment. The big title and your name are editable — whatever you type is remembered separately for rent receipts and parking receipts. Print → save as PDF, or screenshot it.</div>
+    <div class="note">Amount is pulled from the Monthly Update tab for that month. Override it only for an advance or part-payment. The big title and your name are editable — whatever you type is remembered separately for rent receipts and parking receipts. Use Print / Save as PDF, then choose your printer or “Save as PDF” in the browser print dialog.</div>
   </div>
   <div class="card" id="rcPaper"></div>
 </section>
@@ -629,24 +672,23 @@ tr[data-state="ended"] .pill{filter:none}
 <section id="s-report">
   <div class="card">
     <h2>Report</h2>
-    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
-      <div style="min-width:130px">
+    <div class="rp-controls">
+      <div class="rp-field">
         <label>Report type</label>
         <select id="rpType" onchange="rpChanged()">
           <option value="month">Monthly report</option>
           <option value="year">Yearly report</option>
         </select>
       </div>
-      <div id="rpMonthWrap" style="min-width:130px">
+      <div id="rpMonthWrap" class="rp-field">
         <label>Month</label>
         <input type="month" id="rpMonth" onchange="rpChanged()">
       </div>
-      <div id="rpYearWrap" style="min-width:130px;display:none">
+      <div id="rpYearWrap" class="rp-field" style="display:none">
         <label>Year</label>
-        <input type="number" id="rpYear" min="2000" max="2100" step="1" onchange="rpChanged()">
+        <input type="number" id="rpYear" min="2000" max="2100" step="1" inputmode="numeric" onchange="rpYearChanged()">
       </div>
-      <div class="spacer"></div>
-      <button class="b" onclick="printReport()">🖨 Print / Save as PDF</button>
+      <button class="b rp-print" onclick="printReport()">🖨 Print / Save as PDF</button>
     </div>
     <div class="note" id="rpInfo" style="margin-top:10px"></div>
   </div>
@@ -678,6 +720,7 @@ tr[data-state="ended"] .pill{filter:none}
       <div><label>Landlord name (for receipts)</label><input id="cfgOwner" oninput="CFG.owner=this.value;save()"></div>
       <div><label>Property value (RM, optional — for yield)</label><input type="number" step="1" id="cfgValue" oninput="CFG.value=+this.value;save();renderCharts()"></div>
       <div><label>Parking label / location (for parking receipts)</label><input id="cfgParking" oninput="CFG.parking=this.value;save()" placeholder="e.g. Car park Lot B-12, ground floor"></div>
+      <div><label>Rent due day of month</label><input type="number" min="1" max="28" id="cfgDueDay" value="15" oninput="CFG.due_day=Math.min(28,Math.max(1,Number(this.value)||15));save();renderMonth()"><div class="note">Used to flag current-month overdue rent. Set from 1–28.</div></div>
     </div>
     <div class="note">Mortgage + maintenance fee are set once here, then auto-filled into every month's expenses. Change them any time — history keeps what you actually entered.</div>
   </div>
@@ -781,10 +824,10 @@ const $ = s=>document.querySelector(s);
 const id2 = a=>{let r=0;for(const c of String(a==null?"":a))r=(r*31+c.charCodeAt(0))>>>0;return r;};
 
 /* ---------- persistence ---------- */
-function save(){try{localStorage.setItem(KEY,JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,RC_NUMBERS,RC_SEQ,TAX:CFG_TAX,SHOW_ENDED:(document.getElementById("tntShowEnded")||{}).checked?1:0}));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({CFG,TEN,MONTHS,CUR,RC_HDR,RC_OWN,RC_PERIOD,RC_NUMBERS,RC_SEQ,TAX:CFG_TAX}));}catch(e){}
   const el=$("#saveState"); if(el) el.textContent="saved "+new Date().toLocaleTimeString();}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));
-  if(d&&d.SHOW_ENDED!=null) setTimeout(()=>{const c=$("#tntShowEnded"); if(c)c.checked=!!d.SHOW_ENDED;},0);if(d){CFG=Object.assign(CFG,d.CFG||{});TEN=d.TEN||[];MONTHS=d.MONTHS||{};CUR=d.CUR||nowMonth();RC_HDR=d.RC_HDR||{};RC_OWN=d.RC_OWN||{};RC_PERIOD=d.RC_PERIOD||{};RC_NUMBERS=d.RC_NUMBERS||{};RC_SEQ=Number.isInteger(d.RC_SEQ)&&d.RC_SEQ>0?d.RC_SEQ:(Math.max(0,...Object.values(RC_NUMBERS).map(n=>parseInt(String(n).split("-").pop(),10)||0))+1);if(d.TAX)CFG_TAX=Object.assign(CFG_TAX,d.TAX);}}catch(e){}
+if(d){CFG=Object.assign(CFG,d.CFG||{});TEN=d.TEN||[];MONTHS=d.MONTHS||{};CUR=d.CUR||nowMonth();RC_HDR=d.RC_HDR||{};RC_OWN=d.RC_OWN||{};RC_PERIOD=d.RC_PERIOD||{};RC_NUMBERS=d.RC_NUMBERS||{};RC_SEQ=Number.isInteger(d.RC_SEQ)&&d.RC_SEQ>0?d.RC_SEQ:(Math.max(0,...Object.values(RC_NUMBERS).map(n=>parseInt(String(n).split("-").pop(),10)||0))+1);if(d.TAX)CFG_TAX=Object.assign(CFG_TAX,d.TAX);}}catch(e){}
   TEN.forEach(t=>{ t.dep=t.dep||{amount:0,movs:[]}; t.dep.movs=t.dep.movs||[]; }); }
 
 function nowMonth(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");}
@@ -1097,6 +1140,34 @@ function copyPrevMonth(){
   loadMonth(); save(); alert("Copied expense figures from "+mLabel(keys[keys.length-1])+". Rent received reset.");
 }
 
+function renderCollectionOverview(){
+  const active=billableTenants(CUR), data=(MONTHS[CUR]&&MONTHS[CUR].rent)||{};
+  const expected=active.reduce((sum,t)=>sum+(+t.monthly||0),0);
+  const received=active.reduce((sum,t)=>sum+(+(data[t.id]||{}).amt||0),0);
+  const outstanding=Math.max(0,expected-received), rate=expected>0?Math.min(100,received/expected*100):0;
+  const rk=$("#rentKpis"); if(rk) rk.innerHTML=[["Expected",rm(expected),""],["Collected",rm(received),"pos"],["Outstanding",rm(outstanding),outstanding>0?"neg":"pos"],["Collection rate",expected?rate.toFixed(1)+"%":"—",rate>=100?"pos":(expected?"neg":"")]].map(x=>`<div class="kpi"><div class="l">${x[0]}</div><div class="v ${x[2]}">${x[1]}</div></div>`).join("");
+  const overdue=active.filter(t=>{const a=+(data[t.id]||{}).amt||0;const k=rentStatusKey(CUR,+t.monthly||0,a);return k==="overdue"||k==="partial-overdue";}).length;
+  const note=$("#rentCollectionNote"); if(note) note.innerHTML=overdue?`<span class="pill bad">${overdue} overdue</span> Payment due day is ${dueDay()} of the month. Contact tenants with a remaining balance.`:`Payment due day is ${dueDay()} of the month. ${outstanding>0?"Outstanding balances are shown per tenant below.":"All expected rent and parking charges are collected for this month."}`;
+}
+
+/* Collection status is advisory and based on the configured due day. Historical unpaid amounts
+   remain "Outstanding" rather than using today's date to imply they are newly overdue. */
+function dueDay(){ return Math.min(28,Math.max(1,Number(CFG.due_day)||15)); }
+function rentStatusKey(m,due,received){
+  const bal=Math.max(0,due-received);
+  if(due>0 && received>=due) return received>due?"overpaid":"paid";
+  if(m>nowMonth()) return "not-due";
+  if(m<nowMonth()) return received>0?"partial":"outstanding";
+  const day=Number(today().slice(8,10));
+  if(day>dueDay()) return received>0?"partial-overdue":"overdue";
+  return received>0?"partial":"due";
+}
+function rentStatus(m,due,received){
+  const k=rentStatusKey(m,due,received);
+  const labels={paid:['Paid','ok'],overpaid:['Overpaid','warn'],partial:['Part-paid','warn'],outstanding:['Outstanding','bad'],due:['Due',''], 'not-due':['Not due',''],overdue:['Overdue','bad'],'partial-overdue':['Part-paid · overdue','bad']};
+  const x=labels[k]||labels.due; return `<span class="pill ${x[1]}">${x[0]}</span>`;
+}
+
 /* ---------- render: monthly update ---------- */
 function renderMonth(){
   /* Do NOT call rec(CUR) here. Selecting a month to LOOK at it must not create a record for
@@ -1109,22 +1180,25 @@ function renderMonth(){
   rb.innerHTML=active.map(t=>{
     const r=(M&&M.rent||{})[t.id]||{};
     const recv=+r.amt||0; ag+=+t.monthly||0; rc+=recv;
-    const bal=recv-(+t.monthly||0);
-    // "paid" = received covers the agreed amount in full (and something was received)
-    const paid=recv>0 && bal>=0;
+    const due=+t.monthly||0;
+    const bal=Math.max(0,due-recv);
+    const paid=recv>=due && due>0;
+    const status=rentStatus(CUR,due,recv);
     const pill=t.type==="Parking"?'<span class="pill">Parking</span>':'<span class="pill ok">Tenant</span>';
     return `<tr data-rid="${t.id}">
       <td style="min-width:158px"><div style="display:flex;align-items:center;gap:6px;overflow:hidden"><b style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(t.name)}">${esc(t.name)}</b><span style="flex:0 0 auto;display:flex;gap:5px">${pill}${leaseStatus(t,CUR)}</span></div></td>
       <td class="num">${num(t.monthly)}</td>
       <td class="num" style="text-align:center"><input type="checkbox" ${paid?"checked":""} title="Paid in full" style="width:20px;height:20px;cursor:pointer" onchange="togglePaid('${t.id}',this.checked)"></td>
       <td class="num"><input type="number" step="0.01" style="width:100%;min-width:76px;text-align:right" value="${recv||''}" oninput="setRent('${t.id}',this.value)"></td>
-      <td class="num ${bal<0?'neg':''}" id="bal-${id2(t.id)}">${num(bal)}</td>
+      <td class="num ${bal>0?'neg':''}" id="bal-${id2(t.id)}">${num(bal)}</td>
+      <td>${status}</td>
       <td><select style="width:100%;min-width:132px" onchange="setField('method',this.value,'${t.id}')">${METHODS.map(x=>`<option ${r.method===x?'selected':''}>${x}</option>`).join("")}</select></td>
       <td><input type="date" style="width:100%;min-width:104px" value="${r.date||''}" onchange="setField('date',this.value,'${t.id}')"></td>
       <td><input style="width:100%;min-width:104px" value="${esc(r.note||'')}" oninput="setField('note',this.value,'${t.id}')" placeholder="ref / partial"></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="8" class="note">No tenant is active in ${mLabel(CUR)}. Add one in Tenants &amp; Parking, or check the lease start/end dates.</td></tr>`;
-  $("#rentAgreedT").textContent=num(ag); $("#rentRecvT").textContent=num(rc); $("#rentBalT").textContent=num(rc-ag);
+  }).join("") || `<tr><td colspan="9" class="note">No tenant is active in ${mLabel(CUR)}. Add one in Tenants &amp; Parking, or check the lease start/end dates.</td></tr>`;
+  $("#rentAgreedT").textContent=num(ag); $("#rentRecvT").textContent=num(rc); $("#rentBalT").textContent=num(Math.max(0,ag-rc));
+  renderCollectionOverview();
 
   // expense grid
   $("#expGrid").innerHTML=CFG.cats.map(c=>{
@@ -1200,20 +1274,18 @@ function extraTenantOpts(e){
   return opts;
 }
 function setRent(tid,v){
-  const amt=+v||0, t=TEN.find(x=>x.id===tid), bal=amt-((t&&+t.monthly)||0);
+  const amt=+v||0, t=TEN.find(x=>x.id===tid), due=(t&&+t.monthly)||0, bal=Math.max(0,due-amt);
   rec(CUR).rent[tid]=Object.assign(rec(CUR).rent[tid]||{},{amt});
   const b=$("#bal-"+id2(tid));
-  if(b){ b.textContent=num(bal); b.className="num "+(bal<0?"neg":""); }
-  /* keep the "Paid" tick honest without a re-render (a re-render would destroy the input
-     being typed into): it is checked exactly when the typed figure covers the full rent. */
+  if(b){ b.textContent=num(bal); b.className="num "+(bal>0?"neg":""); }
+  /* Keep status and checkbox in sync without re-rendering the table while the user types. */
   const tr=document.querySelector("#rentBody tr[data-rid='"+tid+"']");
-  if(tr){ const cb=tr.querySelector("input[type=checkbox]"); if(cb) cb.checked=(amt>0&&bal>=0); }
-  save(); renderMonthSummary(); renderDash(); renderOddWarnings();
+  if(tr){
+    const statusCell=tr.children[5]; if(statusCell) statusCell.innerHTML=rentStatus(CUR,due,amt);
+    const cb=tr.querySelector("input[type=checkbox]"); if(cb) cb.checked=(due>0&&amt>=due);
+  }
+  save(); renderCollectionOverview(); renderMonthSummary(); renderDash(); renderOddWarnings();
 }
-/* Tick = "paid in full". Ticking writes the agreed rent into Received and stamps today as
-   the payment date, so the common case is one click. Unticking clears the amount and date,
-   putting the row back to pending. Typing an amount yourself always wins: setRent() unticks
-   the box when the typed value does not cover the full agreed rent. */
 function togglePaid(tid,on){
   const t=TEN.find(x=>x.id===tid); if(!t) return;
   const r=rec(CUR).rent[tid]=rec(CUR).rent[tid]||{};
@@ -1278,6 +1350,17 @@ function mortgageOf(r){return +r.exp.mortgage||0;}
      year  -> all 12 months of a year, with a per-month table plus the year totals
    Reading is side-effect free (calc() never creates a month), so generating a report for a year
    that has never been touched cannot pollute History. */
+function rpYearChanged(){
+  const el=$("#rpYear");
+  if(el){
+    const raw=String(el.value||"").trim();
+    const n=Number(raw);
+    if(!/^\d{4}$/.test(raw)||!Number.isInteger(n)||n<2000||n>2100){
+      el.value=String(new Date().getFullYear());
+    }
+  }
+  rpChanged();
+}
 function rpMonths(){
   const type=$("#rpType")?$("#rpType").value:"month";
   if(type==="year"){
@@ -1346,16 +1429,23 @@ function rpMonthSection(m){
   let h="";
   h+=`<div class="rp-sec">1. Income</div><table class="rp"><thead><tr>
       <th>Tenant / Parking</th><th class="n">Agreed</th><th class="n">Received</th>
-      <th class="n">Balance</th><th>Method</th><th>Paid on</th></tr></thead><tbody>`;
+      <th class="n">Remaining / credit</th><th>Status</th><th>Method</th><th>Paid on</th></tr></thead><tbody>`;
   if(tr.length){
-    tr.forEach(x=>{ h+=`<tr><td>${rpEsc(x.name)} <span style="color:#777">(${rpEsc(x.type)})</span></td>
+    tr.forEach(x=>{
+      const status=x.amt>x.due+0.005?{label:"Overpaid",cls:"overpaid"}:
+        x.due>0&&x.amt>=x.due-0.005?{label:"Paid",cls:"paid"}:
+        x.amt>0?{label:"Part-paid",cls:"partial"}:{label:"Unpaid",cls:"outstanding"};
+      h+=`<tr><td>${rpEsc(x.name)} <span style="color:#777">(${rpEsc(x.type)})</span></td>
       <td class="n">${rpMoney(x.due)}</td><td class="n">${rpMoney(x.amt)}</td>
       <td class="n ${x.bal>0.005?"rp-neg":(x.bal<-.005?"rp-pos":"")}">${rpMoney(x.bal)}</td>
-      <td>${rpEsc(x.method||"—")}</td><td>${x.date?rpEsc(x.date):"—"}</td></tr>`; });
-  } else h+=`<tr><td colspan="6" style="color:#777">No tenants billable this month.</td></tr>`;
-  h+=`</tbody><tfoot><tr class="tot"><td>Total received</td><td class="n">—</td>
+      <td><span class="rp-status ${status.cls}">${status.label}</span></td>
+      <td>${rpEsc(x.method||"—")}</td><td>${x.date?rpEsc(x.date):"—"}</td></tr>`;
+    });
+  } else h+=`<tr><td colspan="7" style="color:#777">No tenants billable this month.</td></tr>`;
+  h+=`</tbody><tfoot><tr class="tot"><td colspan="2">Total received</td>
       <td class="n">${rpMoney(c.rent+c.park)}</td><td class="n">${rpMoney(c.outstanding)}</td>
-      <td colspan="2"></td></tr></tfoot></table>`;
+      <td colspan="3"></td></tr></tfoot></table>
+      <div class="note" style="font-size:10px;margin:-3px 0 10px;color:#555">Status guide: <b style="color:#166534">Paid</b> = full amount received · <b style="color:#92400e">Part-paid</b> = some received · <b style="color:#991b1b">Unpaid</b> = none received · <b style="color:#1d4ed8">Overpaid</b> = received more than agreed. “Remaining / credit” is positive when rent is still due and negative when the tenant has paid extra.</div>`;
 
   if(exr.length){
     h+=`<div class="rp-sec">2. Other charges &amp; additional income</div><table class="rp"><thead><tr>
@@ -1372,7 +1462,7 @@ function rpMonthSection(m){
   if(tnb!=null) h+=`<tr><td>Electricity used (TNB meter)</td><td class="n">${num(tnb)} kWh</td></tr>`;
   h+=`</tbody><tfoot><tr class="tot"><td>Total owner costs</td><td class="n">${rpMoney(c.owner)}</td></tr></tfoot></table>`;
 
-  h+=`<div class="rp-sec">${exr.length?4:3}. Result</div><table class="rp"><tbody>
+  h+=`<div class="rp-sec">${exr.length?4:3}. Result</div><table class="rp rp-result"><colgroup><col><col></colgroup><tbody>
       <tr><td>Total income (rent + parking + other)</td><td class="n">${rpMoney(c.income)}</td></tr>
       <tr><td>Less owner costs</td><td class="n">${rpMoney(c.owner)}</td></tr>
       <tr class="tot"><td>Net profit</td><td class="n ${c.net<0?"rp-neg":"rp-pos"}">${rpMoney(c.net)}</td></tr>
@@ -1406,20 +1496,18 @@ function rpYearSection(y){
   h+=`<div class="rp-sec">1. Month by month</div><table class="rp"><thead><tr>
       <th>Month</th><th class="n">Rent</th><th class="n">Parking</th><th class="n">Other</th>
       <th class="n">Income</th><th class="n">Costs</th><th class="n">Net</th>
-      <th class="n">Margin</th><th class="n">Outst.</th></tr></thead><tbody>`;
+      <th class="n">Outst.</th></tr></thead><tbody>`;
   ms.forEach(m=>{ const c=calc(m), isNew=!MONTHS[m];
     h+=`<tr><td>${mLabel(m)}${isNew?' <span style="color:#999">(no data)</span>':""}</td>
       <td class="n">${rpMoney(c.rent)}</td><td class="n">${rpMoney(c.park)}</td>
       <td class="n">${rpMoney(c.extra)}</td><td class="n">${rpMoney(c.income)}</td>
       <td class="n">${rpMoney(c.owner)}</td>
       <td class="n ${c.net<0?"rp-neg":"rp-pos"}">${rpMoney(c.net)}</td>
-      <td class="n ${c.income?(c.margin<0?"rp-neg":"rp-pos"):""}">${c.income?rpPct(c.margin):"—"}</td>
       <td class="n">${isNew?"—":rpMoney(c.outstanding)}</td></tr>`; });
   h+=`</tbody><tfoot><tr class="tot"><td>Year ${y}</td>
       <td class="n">${rpMoney(T.rent)}</td><td class="n">${rpMoney(T.park)}</td>
       <td class="n">${rpMoney(T.extra)}</td><td class="n">${rpMoney(T.income)}</td>
       <td class="n">${rpMoney(T.owner)}</td><td class="n ${T.net<0?"rp-neg":"rp-pos"}">${rpMoney(T.net)}</td>
-      <td class="n ${T.income?(T.margin<0?"rp-neg":"rp-pos"):""}">${T.income?rpPct(T.margin):"—"}</td>
       <td class="n">${rpMoney(have.reduce((s,m)=>s+calc(m).outstanding,0))}</td></tr></tfoot></table>`;
 
   // owner expenses summed by category across the year
@@ -1430,20 +1518,14 @@ function rpYearSection(y){
       <th>Category</th><th class="n">Year total</th></tr></thead><tbody>`;
   if(cats.length) cats.forEach(x=>{ h+=`<tr><td>${rpEsc(x.name)}</td><td class="n">${rpMoney(x.v)}</td></tr>`; });
   else h+=`<tr><td colspan="2" style="color:#777">No owner expenses recorded in ${y}.</td></tr>`;
-  h+=`</tbody><tfoot><tr class="tot"><td>Total</td><td class="n">${rpMoney(T.owner)}</td></tr></tfoot></table>`;
-
-  h+=`<div class="rp-sec">3. Year result</div><table class="rp"><tbody>
-      <tr><td>Total rental income</td><td class="n">${rpMoney(T.income)}</td></tr>
-      <tr><td>Less owner costs</td><td class="n">${rpMoney(T.owner)}</td></tr>
-      <tr class="tot"><td>Net profit</td><td class="n ${T.net<0?"rp-neg":"rp-pos"}">${rpMoney(T.net)}</td></tr>
-      <tr><td>Margin</td><td class="n ${T.income?(T.margin<0?"rp-neg":"rp-pos"):""}">${T.income?rpPct(T.margin):"—"}</td></tr>
-      <tr><td>Tenant-borne utilities (recoverable)</td><td class="n">${rpMoney(T.tenantExp)}</td></tr>
-      <tr><td>Months with data</td><td class="n">${have.length} of 12</td></tr>
-      </tbody></table>`;
+  h+=`</tbody></table>`;
+  h+=`<div class="rp-year-meta"><b>Additional annual details</b><br>
+      Tenant-borne utilities (recoverable, not owner costs): <b>${rpMoney(T.tenantExp)}</b><br>
+      Months with recorded data: <b>${have.length} of 12</b> · Net margin: <b>${T.income?rpPct(T.margin):"—"}</b></div>`;
 
   const dd=rpDepositRows(ms);
   if(dd.length){
-    h+=`<div class="rp-sec">4. Deposits held at ${mLabel(ms[11])}</div><table class="rp"><thead><tr>
+    h+=`<div class="rp-sec">3. Deposits held at ${mLabel(ms[11])}</div><table class="rp"><thead><tr>
         <th>Tenant</th><th class="n">Held</th><th class="n">Deducted</th><th class="n">Refunded</th>
         <th class="n">Returnable</th><th>Status</th></tr></thead><tbody>`;
     dd.forEach(d=>{ h+=`<tr><td>${rpEsc(d.name)}</td><td class="n">${rpMoney(d.held)}</td>
@@ -1570,15 +1652,13 @@ function rwMortgage(){
   const donePct=Math.max(0,Math.min(100,(total-left)/total*100));
   const perMonth=+CFG.mortgage||0;
   const paidMonths=total-left;
-  const nominal=perMonth*paidMonths;
   const row=(l,v,cls)=>`<div class="rw-row"><span class="l">${esc(l)}</span><span class="n ${cls||""}">${v}</span></div>`;
   return rwCard("Mortgage", `
     ${row("Monthly",rm(perMonth))}
     ${row("Remaining",left?left+" mo":"—")}
     ${row("Finishes",mLabel(end))}
     <div class="rw-bar" title="${donePct.toFixed(0)}% of the term elapsed"><i style="width:${donePct}%;background:var(--acc)"></i></div>
-    <div class="rw-cap">${donePct.toFixed(0)}% of the term elapsed · ${paidMonths} of ${total} months paid
-    ${nominal?` · about ${rm(nominal)} paid so far (excludes principal)`:""}</div>`);
+    <div class="rw-cap">${donePct.toFixed(0)}% of the scheduled term elapsed · ${paidMonths} of ${total} months elapsed. This is a term estimate, not a loan-balance calculation.</div>`);
 }
 /* 3. Deposit pot — what is held, and how much of it is owed back */
 function rwDeposits(){
@@ -1598,23 +1678,21 @@ function rwDeposits(){
       <i class="ret" style="width:${pct}%"></i><i class="held" style="width:${100-pct}%"></i></div>
     <div class="rw-cap">${owing} of ${TEN.length} tenant${TEN.length===1?"":"s"} hold${owing===1?"s":""} a returnable balance</div>`);
 }
-/* 4. Occupancy — let vs billable now, and how much of the month is actually being paid */
-function rwOccupancy(){
-  const c=calc(CUR);
-  const units=TEN.length, billable=billableTenants(CUR);
-  const letNow=billable.length;
-  const vac=Math.max(0,units-letNow);
-  const due=billable.reduce((s,t)=>s+(+t.monthly||0),0);
-  const got=c.rent+c.park;
-  const rate=due?got/due*100:0;
-  const box=(v,k,cls)=>`<div><div class="v ${cls||""}">${v}</div><div class="k">${k}</div></div>`;
-  return rwCard("Occupancy · "+mLabel(CUR), `
-    <div class="rw-mini">
-      ${box(letNow+"/"+units,"Let")}
-      ${box(vac?String(vac):"—","Vacant",vac?"neg":"")}
-      ${box(c.income?rate.toFixed(0)+"%":"—","Collected",rate<99.9&&due?"neg":"pos")}
-    </div>
-    <div class="rw-cap" style="margin-top:7px">Billed ${rm(due)} · received ${rm(got)}${c.outstanding>0?` · <b style="color:var(--bad)">${rm(c.outstanding)} outstanding</b>`:" · fully collected"}</div>`);
+/* 4. Rent collection — rental tenants only; parking is tracked separately in Monthly Update. */
+function rwRentCollection(){
+  const rows=billableTenants(CUR).filter(t=>t.type!=="Parking");
+  const rec=(MONTHS[CUR]||{}).rent||{};
+  const due=rows.reduce((s,t)=>s+(+t.monthly||0),0);
+  const got=rows.reduce((s,t)=>s+(+((rec[t.id]||{}).amt)||0),0);
+  const bal=Math.max(0,due-got), pct=due?Math.min(100,got/due*100):0;
+  const row=(l,v,cls)=>`<div class="rw-row"><span class="l">${esc(l)}</span><span class="n ${cls||""}">${v}</span></div>`;
+  return rwCard("Rent collection · "+mLabel(CUR), `
+    ${row("Rental tenants",rows.length)}
+    ${row("Rent billed",rm(due))}
+    ${row("Received",rm(got),got>=due&&due>0?"pos":"")}
+    ${row("Still outstanding",rm(bal),bal>0?"neg":"pos")}
+    <div class="rw-bar" title="${pct.toFixed(0)}% of rental rent collected"><i style="width:${pct}%;background:var(--acc)"></i></div>
+    <div class="rw-cap">${due?pct.toFixed(0)+"% collected":"No rental rent billed for this month"} · parking excluded</div>`);
 }
 /* 5. Year to date — how the current calendar year is tracking */
 function rwYtd(){
@@ -1634,7 +1712,8 @@ function rwYtd(){
 }
 function renderWidgets(){
   const box=$("#rWidgets"); if(!box) return;
-  try{ box.innerHTML = rwCashflow()+rwYtd()+rwMortgage()+rwDeposits()+rwOccupancy(); }
+  /* Keep the left rail focused on monthly operations. */
+  try{ box.innerHTML = rwCashflow()+rwRentCollection(); }
   catch(e){ box.innerHTML=""; }
 }
 
@@ -1642,7 +1721,7 @@ function renderWidgets(){
 /* ============================ RAIL COLUMN 2 ============================
    A second set of read-only summaries for wide screens, where the first rail leaves a few
    hundred px unused beside it. These are deliberately DERIVED views rather than new state:
-   rent roll, expiry watch, payment methods, and a tax snapshot all read through calc(),
+   lease expiry watch and a tax snapshot read through the same saved data,
    depTotals() and taxCompute(), so they cannot disagree with the rest of the app and cannot
    create phantom months. */
 function r2Card(t,b){ return `<div class="card"><h2>${esc(t)}</h2>${b}</div>`; }
@@ -1773,7 +1852,8 @@ function r2Health(){
 }
 function renderRail2(){
   const box=$("#rail2"); if(!box) return;
-  try{ box.innerHTML = r2RentRoll()+r2Expiry()+r2Methods()+r2Tax()+r2Health(); }
+  /* Keep year-to-date, deposits, lease follow-up, tax and data-health together on the right. */
+  try{ box.innerHTML = rwYtd()+rwDeposits()+r2Expiry()+r2Tax()+r2Health(); }
   catch(e){ box.innerHTML=""; }
 }
 
@@ -1882,27 +1962,10 @@ function renderDash(){
     <td><div class="bar"><i style="background:${col};width:${c.income?Math.min(100,pct*3):0}%"></i></div></td></tr>`;}).join("")
     : `<tr><td colspan="4" class="note">No expenses recorded.</td></tr>`;
 
-  // per tenant — only tenants whose lease is active for this month. Lapsed / not-yet-started
-  // leases are left out entirely (their history stays in History and the month itself).
-  const rows=act.map(t=>{
-    const a=+((r.rent[t.id]||{}).amt)||0, ag=+t.monthly||0, b=a-ag;
-    const st=b>=0?'<span class="pill ok">paid</span>'
-      : (a>0?'<span class="pill warn">partial</span>':'<span class="pill bad">unpaid</span>');
-    return {t,ag,a,b,st};
-  });
-  const T=rows.reduce((s,x)=>({ag:s.ag+x.ag,a:s.a+x.a,b:s.b+x.b}),{ag:0,a:0,b:0});
-  $("#tenBody").innerHTML=rows.map(x=>`<tr><td>${esc(x.t.name)} ${x.t.type==="Parking"?'<span class="pill">Parking</span>':""} ${leaseStatus(x.t,m)}</td><td class="num">${num(x.ag)}</td><td class="num">${num(x.a)}</td><td class="num ${x.b<0?'neg':''}">${num(x.b)}</td><td>${x.st}</td></tr>`).join("")
-    ||`<tr><td colspan="5" class="note">No active tenants for ${mLabel(m)}.</td></tr>`;
-  // footer totals over the rows actually shown
-  $("#tenTotLbl").innerHTML= rows.length? `<b>Total (${rows.length})</b>` : "Total";
-  $("#tenTotAg").innerHTML=`<b>${num(T.ag)}</b>`;
-  $("#tenTotA").innerHTML =`<b>${num(T.a)}</b>`;
-  const tb=$("#tenTotB"); tb.innerHTML=`<b>${num(T.b)}</b>`; tb.className="num"+(T.b<0?" neg":"");
+  // Detailed per-tenant rent collection lives in Monthly Update, avoiding a duplicate dashboard table.
+  // Expense breakdown above includes both owner and tenant-borne categories, so a second outgoings
+  // table would repeat the same figures.
 
-  // owner outgoings
-  const own=CFG.cats.filter(x=>x.bearer!=="tenant").map(x=>[x.name,+r.exp[x.id]||0]).filter(x=>x[1]>0);
-  $("#ownBody").innerHTML=own.map(x=>`<tr><td>${esc(x[0])}</td><td class="num">${num(x[1])}</td><td>You (landlord)</td></tr>`).join("")
-    +`<tr><td><b>Total</b></td><td class="num"><b>${num(c.owner)}</b></td><td></td></tr>`;
 }
 function mortgageLeft(m){
   if(!CFG.mortgage_end||!CFG.mortgage) return "";
@@ -1924,18 +1987,14 @@ function delTenant(id){
   renderTenants(); renderMonth(); renderDash(); renderDeposits(); save();
 }
 function renderTenants(){
-  const showEnded=($("#tntShowEnded")&&$("#tntShowEnded").checked)||false;
   const states=TEN.map(t=>({t,st:tenantState(t,CUR)}));
-  const endedN=states.filter(x=>x.st==="ended").length;
-  /* Persist the toggle so it survives a reload, but default to hiding ended tenants —
-     a lapsed tenant you are done with should not clutter the working list. */
-  const cnt=$("#tntCount"); if(cnt) cnt.textContent=`${TEN.length} record${TEN.length===1?"":"s"}`;
-  const hn=$("#tntHideNote");
-  if(hn) hn.textContent = (!showEnded && endedN) ? `${endedN} ended hidden — history still counted` : "";
-  const query=(($("#tenantSearch")||{}).value||"").trim().toLocaleLowerCase();
-  const typeFilter=(($("#tenantTypeFilter")||{}).value||"");
-  const statusFilter=(($("#tenantStatusFilter")||{}).value||"");
-  const list=(showEnded?states:states.filter(x=>x.st!=="ended")).filter(({t,st})=>
+  const cnt=$("#tntCount");
+  const query=((($("#tenantSearch")||{}).value)||"").trim().toLocaleLowerCase();
+  const typeFilter=((($("#tenantTypeFilter")||{}).value)||"");
+  const statusEl=$("#tenantStatusFilter");
+  if(statusEl && statusEl.value==="" && !statusEl.dataset.userChanged) statusEl.value="active";
+  const statusFilter=((statusEl||{}).value)||"";
+  const list=states.filter(({t,st})=>
     (!query||String(t.name||"").toLocaleLowerCase().includes(query)||String(t.phone||"").toLocaleLowerCase().includes(query)) &&
     (!typeFilter||t.type===typeFilter) && (!statusFilter||st===statusFilter));
   $("#tntBody").innerHTML=list.map(({t,st})=>`<tr data-tid="${t.id}" data-state="${st}">
@@ -1990,11 +2049,18 @@ function setT(id,f,v){
 
 /* ---------- deposits ---------- */
 function renderDeposits(){
-  if(!TEN.some(t=>t.id===DEPSEL)) DEPSEL=TEN.length?TEN[0].id:null;
+  const searchEl=$("#depositSearch"), statusEl=$("#depositStatusFilter");
+  const query=((searchEl||{}).value||"").trim().toLocaleLowerCase();
+  const statusFilter=(statusEl&&statusEl.value!==undefined)?statusEl.value:"active";
+  const rows=TEN.map(t=>({t,st:tenantState(t,CUR),d:depTotals(t)})).filter(({t,st})=>
+    (!query||String(t.name||"").toLocaleLowerCase().includes(query)||String(t.phone||"").toLocaleLowerCase().includes(query)) &&
+    (!statusFilter||st===statusFilter));
+  if(!TEN.some(t=>t.id===DEPSEL) || !rows.some(x=>x.t.id===DEPSEL)) DEPSEL=rows.length?rows[0].t.id:null;
   let H=0,D=0,F=0;
-  $("#depBody").innerHTML=TEN.map(t=>{
-    const d=depTotals(t); H+=d.held; D+=d.ded; F+=d.ref;
-    return `<tr data-state="${tenantState(t,CUR)}" class="click ${DEPSEL===t.id?'sel':''}" onclick="selDep('${t.id}')">
+  const count=$("#depositFilterCount"); if(count) count.textContent=`${rows.length} shown / ${TEN.length} records`;
+  $("#depBody").innerHTML=rows.map(({t,st,d})=>{
+    H+=d.held; D+=d.ded; F+=d.ref;
+    return `<tr data-state="${st}" class="click ${DEPSEL===t.id?'sel':''}" onclick="selDep('${t.id}')">
       <td><b>${esc(t.name)}</b></td>
       <td>${t.type==="Parking"?'<span class="pill">Parking</span>':'<span class="pill ok">Tenant</span>'}</td>
       <td>${leaseStatus(t,CUR)}</td>
@@ -2004,7 +2070,7 @@ function renderDeposits(){
       <td class="num ${d.bal<0?'neg':''}" data-depbal="${t.id}"><b>${num(d.bal)}</b></td>
       <td class="noprint">${DEPSEL===t.id?'<span class="pill ok">selected</span>':""}</td>
     </tr>`;
-  }).join("")||`<tr><td colspan="8" class="note">No tenants yet.</td></tr>`;
+  }).join("")||`<tr><td colspan="8" class="note">No matching deposit records.</td></tr>`;
   $("#depHeldT").textContent=num(H); $("#depDedT").textContent=num(D);
   $("#depRefT").textContent=num(F); $("#depBalT").textContent=num(H-D-F);
   renderMovs();
@@ -2671,21 +2737,30 @@ function svgChart(ks,series,fmt,opts){
 }
 /* donut chart. items=[{name,value,color}] */
 function svgDonut(items,fmt){
-  const tot=items.reduce((s,i)=>s+i.value,0);
-  if(!tot) return '<div class="note">Nothing to chart yet.</div>';
-  const S=200,R=80,r=48,cx=100,cy=100; let a0=-Math.PI/2, g="";
-  items.forEach(it=>{
-    const frac=it.value/tot, a1=a0+frac*Math.PI*2, big=frac>0.5?1:0;
-    const p=(r,a)=>[cx+r*Math.cos(a),cy+r*Math.sin(a)];
-    const[x1,y1]=p(R,a0),[x2,y2]=p(R,a1),[x3,y3]=p(r,a1),[x4,y4]=p(r,a0);
-    g+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${big} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${r},${r} 0 ${big} 0 ${x4.toFixed(2)},${y4.toFixed(2)} Z" fill="${it.color}" style="cursor:pointer" data-tip="&lt;div class='t'&gt;${esc(it.name)}&lt;/div&gt;&lt;div class='r'&gt;&lt;i style='background:${it.color}'&gt;&lt;/i&gt;&lt;span class='n'&gt;${fmt(it.value)}&lt;/span&gt;&lt;span class='v'&gt;${(frac*100).toFixed(1)}%&lt;/span&gt;&lt;/div&gt;"/&gt;`;
-    a0=a1;
-  });
-  const rows=items.map(it=>`<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${it.color};vertical-align:middle;margin-right:6px"></i>${esc(it.name)}</td><td class="num">${fmt(it.value)}</td><td class="num">${(it.value/tot*100).toFixed(1)}%</td></tr>`).join("");
+  const total=items.reduce((sum,it)=>sum+Math.max(0,+it.value||0),0);
+  if(!total) return '<div class="note">Nothing to chart yet.</div>';
+  const S=200,R=80,r=48,cx=100,cy=100,mid=(R+r)/2,thick=R-r;
+  let a0=-Math.PI/2, g="";
+  const positive=items.filter(it=>(+it.value||0)>0);
+  // SVG arc commands cannot draw a complete 360-degree arc when start=end.
+  // Use a stroked circle for a single 100% slice so it has no visible gap.
+  if(positive.length===1){
+    const it=positive[0];
+    g+=`<circle cx="${cx}" cy="${cy}" r="${mid}" fill="none" stroke="${it.color}" stroke-width="${thick}" style="cursor:pointer" data-tip="&lt;div class='t'&gt;${esc(it.name)}&lt;/div&gt;&lt;div class='r'&gt;&lt;i style='background:${it.color}'&gt;&lt;/i&gt;&lt;span class='n'&gt;${fmt(it.value)}&lt;/span&gt;&lt;span class='v'&gt;100.0%&lt;/span&gt;&lt;/div&gt;"/>`;
+  }else{
+    positive.forEach(it=>{
+      const frac=(+it.value||0)/total, a1=a0+frac*Math.PI*2, big=frac>0.5?1:0;
+      const p=(rad,a)=>[cx+rad*Math.cos(a),cy+rad*Math.sin(a)];
+      const[x1,y1]=p(R,a0),[x2,y2]=p(R,a1),[x3,y3]=p(r,a1),[x4,y4]=p(r,a0);
+      g+=`<path d="M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R} 0 ${big} 1 ${x2.toFixed(2)},${y2.toFixed(2)} L${x3.toFixed(2)},${y3.toFixed(2)} A${r},${r} 0 ${big} 0 ${x4.toFixed(2)},${y4.toFixed(2)} Z" fill="${it.color}" style="cursor:pointer" data-tip="&lt;div class='t'&gt;${esc(it.name)}&lt;/div&gt;&lt;div class='r'&gt;&lt;i style='background:${it.color}'&gt;&lt;/i&gt;&lt;span class='n'&gt;${fmt(it.value)}&lt;/span&gt;&lt;span class='v'&gt;${(frac*100).toFixed(1)}%&lt;/span&gt;&lt;/div&gt;"/>`;
+      a0=a1;
+    });
+  }
+  const rows=items.map(it=>`<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${it.color};vertical-align:middle;margin-right:6px"></i>${esc(it.name)}</td><td class="num">${fmt(it.value)}</td><td class="num">${(Math.max(0,+it.value||0)/total*100).toFixed(1)}%</td></tr>`).join("");
   return `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center">
     <svg viewBox="0 0 ${S} ${S}" width="${S}" height="${S}" style="flex:none">${g}
       <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="13" fill="var(--dim)">Total</text>
-      <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--txt)">${fmt(tot)}</text></svg>
+      <text x="${cx}" y="${cy+14}" text-anchor="middle" font-size="14" font-weight="700" fill="var(--txt)">${fmt(total)}</text></svg>
     <div style="flex:1;min-width:220px"><table><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">Share</th></tr></thead><tbody>${rows}</tbody></table></div>
   </div>`;
 }
@@ -3192,6 +3267,7 @@ function renderSetup(){
   $("#cfgMtg").value=CFG.mortgage||""; $("#cfgMaint").value=CFG.maintenance||"";
   $("#cfgMtgEnd").value=CFG.mortgage_end||""; $("#cfgOwner").value=CFG.owner||"";
   $("#cfgParking").value=CFG.parking||""; if($("#cfgValue")) $("#cfgValue").value=CFG.value||"";
+  if($("#cfgDueDay")) $("#cfgDueDay").value=dueDay();
   /* These two are filled here rather than inline: the card is static HTML, so a ${} in the
      markup is just literal text and the field would boot blank. */
   const rw=$("#cfgRenew"); if(rw) rw.value=+CFG.renew_months||2;
